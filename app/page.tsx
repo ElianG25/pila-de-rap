@@ -81,6 +81,7 @@ export default function Home() {
       </div>
 
       <div className="absolute inset-0 bg-black/60" />
+      <div className="pointer-events-none absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
 
       {/* Glow */}
       <motion.div
@@ -213,7 +214,7 @@ export default function Home() {
               </h2>
 
               <p className="text-gray-300 mb-6">
-                Tranquilo fiera 😎 Las inscripciones se abrirán pronto.
+                Tranquilo fiera 😎 Las inscripciones se abrirán pronto. Atentos al internet. Guarden esa feria.
               </p>
 
               <motion.button

@@ -12,35 +12,44 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+export const metadata: Metadata = {
+  metadataBase: new URL("https://pila-de-rap.vercel.app"),
+
   title: {
-    default: "Pila de Ra'",
+    default: "🔋 Pila de Ra' | 🔜",
     template: "%s | Pila de Ra'",
   },
+
   description:
-    "Eventos de freestyle en República Dominicana. Barras, flow y competencia real.",
+    "Eventos de plaza de freestyle en República Dominicana. Barras, flow y competencia real.",
+
   openGraph: {
-    title: "Pila de Ra'",
-    description:
-      "Competencias de freestyle y cultura urbana en RD.",
+    title: "🔋 Pila de Ra'",
+    description: "¡La plaza sigue viva!",
     url: "https://pila-de-rap.vercel.app",
     siteName: "Pila de Ra'",
     images: [
       {
-        url: "/icon.png", // usa tu logo
-        width: 512,
-        height: 512,
+        url: "https://pila-de-rap.vercel.app/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Pila de Rap - Freestyle en RD",
       },
     ],
     locale: "es_DO",
     type: "website",
   },
+
   twitter: {
     card: "summary_large_image",
-    title: "Pila de Ra'",
+    title: "🔋 Pila de Ra'",
     description:
       "Eventos de freestyle en RD. Próximo evento: 30 de mayo.",
-    images: ["/icon.ico"],
+    images: ["https://pila-de-rap.vercel.app/og.png"],
+  },
+
+  icons: {
+    icon: "/icon.png",
   },
 };
 
