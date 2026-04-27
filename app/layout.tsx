@@ -12,9 +12,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Pila de Rap | FECHA 1 is coming...",
-  description: "La plaza sigue viva",
+export const metadata = {
+  title: {
+    default: "Pila de Rap",
+    template: "%s | Pila de Rap",
+  },
+  description:
+    "Eventos de freestyle en República Dominicana. Barras, flow y competencia real.",
+  openGraph: {
+    title: "Pila de Rap",
+    description:
+      "Competencias de freestyle y cultura urbana en RD.",
+    url: "https://pila-de-rap.vercel.app",
+    siteName: "Pila de Rap",
+    images: [
+      {
+        url: "/icon.png", // usa tu logo
+        width: 512,
+        height: 512,
+      },
+    ],
+    locale: "es_DO",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Pila de Rap",
+    description:
+      "Eventos de freestyle en RD. Próximo evento: 30 de mayo.",
+    images: ["/icon.ico"],
+  },
 };
 
 export default function RootLayout({

@@ -4,7 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function Home() {
-  const [timeLeft, setTimeLeft] = useState("");
+  const [timeLeft, setTimeLeft] = useState({
+    d: 0,
+    h: 0,
+    m: 0,
+    s: 0,
+  });
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -15,16 +20,16 @@ export default function Home() {
       const diff = targetDate.getTime() - now.getTime();
 
       if (diff <= 0) {
-        setTimeLeft("¡Es hoy! 🔥");
         clearInterval(interval);
         return;
       }
 
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-
-      setTimeLeft(`${days}d ${hours}h ${minutes}m`);
+      setTimeLeft({
+        d: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        h: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        m: Math.floor((diff / (1000 * 60)) % 60),
+        s: Math.floor((diff / 1000) % 60),
+      });
     }, 1000);
 
     return () => clearInterval(interval);
@@ -55,7 +60,7 @@ export default function Home() {
         transition={{ duration: 0.8 }}
         className="relative z-10 w-full max-w-lg mx-auto"
       >
-        <h1 className="text-5xl md:text-7xl font-extrabold mb-4 tracking-tight text-yellow-400">
+        <h1 className="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight text-yellow-400 leading-tight">
           🔋 Pila de Rap 🎤
         </h1>
 
@@ -63,14 +68,27 @@ export default function Home() {
           Sitio en construcción...
         </p>
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="mb-8 text-xl md:text-2xl font-semibold tracking-wide text-yellow-300"
-        >
-          ⏳ {timeLeft}
-        </motion.div>
+        <div className="mb-8 flex justify-center gap-3 text-yellow-300 font-semibold">
+          {Object.entries(timeLeft).map(([label, value]) => (
+            <motion.div
+              key={label}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-black/60 border border-yellow-400/20 rounded-lg px-3 py-2 min-w-[60px]"
+            >
+              <div className="text-xl md:text-2xl">{value}</div>
+              <div className="text-xs text-gray-400 uppercase">
+                {label === "d"
+                  ? "Días"
+                  : label === "h"
+                    ? "Horas"
+                    : label === "m"
+                      ? "Min"
+                      : "Seg"}
+              </div>
+            </motion.div>
+          ))}
+        </div>
 
         {/* Card */}
         <motion.div
@@ -108,8 +126,19 @@ export default function Home() {
           <a
             href="https://instagram.com/piladera"
             target="_blank"
-            className="block mt-6 text-sm text-gray-500 hover:text-yellow-300 transition"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 mt-6 text-sm text-gray-500 hover:text-yellow-300 transition"
           >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M7.75 2C4.57 2 2 4.57 2 7.75v8.5C2 19.43 4.57 22 7.75 22h8.5C19.43 22 22 19.43 22 16.25v-8.5C22 4.57 19.43 2 16.25 2h-8.5zm0 2h8.5C18.55 4 20 5.45 20 7.75v8.5c0 2.3-1.45 3.75-3.75 3.75h-8.5C5.45 20 4 18.55 4 16.25v-8.5C4 5.45 5.45 4 7.75 4zm8.25 1.5a1 1 0 100 2 1 1 0 000-2zM12 7a5 5 0 100 10 5 5 0 000-10zm0 2a3 3 0 110 6 3 3 0 010-6z" />
+            </svg>
+
             Síguenos en Instagram
           </a>
         </motion.div>
