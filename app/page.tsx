@@ -53,7 +53,7 @@ export default function Home() {
           <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
 
           <p className="text-yellow-400 text-xs tracking-[0.3em] animate-pulse">
-            PILA DE RAP
+            PILA DE RA'
           </p>
         </div>
       </div>
@@ -106,7 +106,7 @@ export default function Home() {
           transition={{ repeat: Infinity, duration: 2 }}
           className="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight text-yellow-400 leading-tight"
         >
-          🔋 Pila de Rap 🎤
+          🔋 Pila de Ra' 🎤
         </motion.h1>
 
         <p className="text-lg md:text-xl text-gray-300 mb-6">
@@ -182,7 +182,7 @@ export default function Home() {
         </motion.div>
 
         <p className="text-xs text-gray-600 mt-12">
-          © {new Date().getFullYear()} ❤️ Pila de Rap
+          © {new Date().getFullYear()} ❤️ Pila de Ra'
         </p>
       </motion.div>
 

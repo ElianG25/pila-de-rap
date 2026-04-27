@@ -14,17 +14,17 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: {
-    default: "Pila de Rap",
-    template: "%s | Pila de Rap",
+    default: "Pila de Ra'",
+    template: "%s | Pila de Ra'",
   },
   description:
     "Eventos de freestyle en República Dominicana. Barras, flow y competencia real.",
   openGraph: {
-    title: "Pila de Rap",
+    title: "Pila de Ra'",
     description:
       "Competencias de freestyle y cultura urbana en RD.",
     url: "https://pila-de-rap.vercel.app",
-    siteName: "Pila de Rap",
+    siteName: "Pila de Ra'",
     images: [
       {
         url: "/icon.png", // usa tu logo
@@ -37,7 +37,7 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pila de Rap",
+    title: "Pila de Ra'",
     description:
       "Eventos de freestyle en RD. Próximo evento: 30 de mayo.",
     images: ["/icon.ico"],
