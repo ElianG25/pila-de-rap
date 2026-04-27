@@ -39,9 +39,16 @@ export default function Home() {
     <main className="relative min-h-screen text-white flex items-center justify-center px-6 text-center overflow-hidden">
 
       {/* 🎥 VIDEO */}
-      <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
+      <div className="absolute inset-0 overflow-hidden">
         <iframe
-          className=" w-full h-full pointer-events-none opacity-50 blur-[2px] scale-[1.7] md:scale-125 translate-y-[-10%] md:translate-y-0"
+          className="
+            absolute top-1/2 left-1/2
+            w-[177.77vh] h-[100vh]
+            min-w-[100vw] min-h-[56.25vw]
+            -translate-x-1/2 -translate-y-1/2
+            pointer-events-none opacity-50 blur-[2px]
+            md:scale-110
+          "
           src="https://www.youtube.com/embed/15qGFxbi8sM?autoplay=1&mute=1&loop=1&playlist=15qGFxbi8sM&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
