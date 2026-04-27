@@ -107,11 +107,11 @@ export default function Home() {
           transition={{ repeat: Infinity, duration: 2 }}
           className="text-4xl md:text-6xl font-extrabold mb-4 tracking-tight text-yellow-400 leading-tight"
         >
-          🔋 Pila de Ra' 🎤
+          🔋 Pila de Ra'
         </motion.h1>
 
         <p className="text-lg md:text-xl text-gray-300 mb-6">
-          Sitio en construcción...
+          ¡LA PLAZA SIGUE VIVA!
         </p>
 
         {/* ⏳ Countdown */}
@@ -157,7 +157,7 @@ export default function Home() {
           </p>
 
           <p className="text-xs text-gray-500 mb-6">
-            📍 Plaza pública • Entrada libre
+            📍 Parque público • Entrada libre
           </p>
 
           <motion.button
