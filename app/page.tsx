@@ -214,7 +214,7 @@ export default function Home() {
               </h2>
 
               <p className="text-gray-300 mb-6">
-                Tranquilo fiera 😎 Las inscripciones se abrirán pronto. Atentos al internet. Guarden esa feria.
+                Tranquilo fiera 😎 Las inscripciones se abrirán pronto. Atentos al internet. Guarden esa feria ($$$).
               </p>
 
               <motion.button
