@@ -39,9 +39,9 @@ export default function Home() {
     <main className="relative min-h-screen text-white flex items-center justify-center px-6 text-center overflow-hidden">
 
       {/* 🎥 VIDEO */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
         <iframe
-          className="w-full h-full scale-125 pointer-events-none opacity-50 blur-[2px]"
+          className=" w-full h-full pointer-events-none opacity-50 blur-[2px] scale-[1.7] md:scale-125 translate-y-[-10%] md:translate-y-0"
           src="https://www.youtube.com/embed/15qGFxbi8sM?autoplay=1&mute=1&loop=1&playlist=15qGFxbi8sM&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
@@ -172,11 +172,11 @@ export default function Home() {
               </button>
 
               <h2 className="text-2xl font-bold text-yellow-400 mb-4">
-                Inscripciones
+                📝 Inscripciones
               </h2>
 
               <p className="text-gray-300 mb-6">
-                Próximamente estaremos habilitando las inscripciones.
+                Tranquilo fiera 😎 Las inscripciones se abrirán pronto. Mantente atento a nuestras redes sociales para no perderte nada.
               </p>
 
               <motion.button
