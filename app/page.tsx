@@ -114,6 +114,10 @@ export default function Home() {
           ¡LA PLAZA SIGUE VIVA!
         </p>
 
+        <p className="text-lg md:text-xl text-gray-300 mb-6">
+          Formatos sorpresas, premios en efectivo y pila de vibras.
+        </p>
+
         {/* ⏳ Countdown */}
         <div className="mb-8 flex justify-center gap-3 text-yellow-300 font-semibold">
           {Object.entries(timeLeft).map(([label, value]) => (
