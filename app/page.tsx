@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export default function Home() {
@@ -32,28 +32,28 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen text-white flex items-center justify-center px-6 text-center overflow-hidden">
+
+      {/* 🎥 VIDEO */}
       <div className="absolute inset-0 overflow-hidden">
         <iframe
           className="w-full h-full scale-125 pointer-events-none opacity-50 blur-[2px]"
-          src="https://www.youtube.com/embed/YZ3xyyYlnz0?autoplay=1&mute=1&loop=1&playlist=YZ3xyyYlnz0&controls=0&modestbranding=1"
+          src="https://www.youtube.com/embed/15qGFxbi8sM?autoplay=1&mute=1&loop=1&playlist=15qGFxbi8sM&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
         />
       </div>
 
-      {/* Overlay oscuro más suave */}
       <div className="absolute inset-0 bg-black/60" />
 
-      {/* Glow con color marca */}
       <div className="absolute w-[500px] h-[500px] bg-yellow-400/20 blur-[120px] rounded-full top-[-100px] left-[-100px]" />
       <div className="absolute w-[400px] h-[400px] bg-yellow-300/20 blur-[120px] rounded-full bottom-[-100px] right-[-100px]" />
 
-      {/* Contenido */}
+      {/* ✅ CONTENIDO CENTRADO */}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
-        className="relative z-10"
+        className="relative z-10 w-full max-w-lg mx-auto"
       >
         <h1 className="text-5xl md:text-7xl font-extrabold mb-4 tracking-tight text-yellow-400">
           🔋 Pila de Rap 🎤
@@ -63,7 +63,6 @@ export default function Home() {
           Sitio en construcción...
         </p>
 
-        {/* ⏳ COUNTDOWN */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -73,12 +72,12 @@ export default function Home() {
           ⏳ {timeLeft}
         </motion.div>
 
-        {/* Card evento */}
+        {/* Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="bg-black/60 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-8 max-w-md w-full shadow-2xl"
+          className="bg-black/60 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-8 shadow-2xl"
         >
           <h2 className="text-2xl font-semibold mb-3 text-yellow-400">
             Próximo Evento
@@ -92,17 +91,19 @@ export default function Home() {
             Barras, flow y competencia real. ¿Estás listo?
           </p>
 
-          {/* 🔘 BOTÓN */}
-          <button
+          {/* 🔥 BOTÓN CON ANIMACIÓN REAL */}
+          <motion.button
             onClick={() => setOpen(true)}
-            className="relative group bg-yellow-400 text-black px-6 py-2 rounded-xl font-bold overflow-hidden"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative group bg-yellow-400 text-black px-6 py-2 rounded-xl font-bold overflow-hidden w-full"
           >
             <span className="relative z-10">
-              Próximamente inscripciones
+              📝 Inscripciones
             </span>
 
             <span className="absolute inset-0 bg-yellow-300 opacity-0 group-hover:opacity-100 transition duration-300"></span>
-          </button>
+          </motion.button>
 
           <a
             href="https://instagram.com/piladera"
@@ -118,36 +119,49 @@ export default function Home() {
         </p>
       </motion.div>
 
-      {/* 🪟 MODAL */}
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-          <div className="bg-black border border-yellow-400/30 rounded-2xl p-8 max-w-sm w-full text-center relative">
-
-            {/* Botón cerrar */}
-            <button
-              onClick={() => setOpen(false)}
-              className="absolute top-3 right-4 text-gray-400 hover:text-white text-xl"
+      {/* 🪟 MODAL ANIMADO */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0, y: 40 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0, y: 40 }}
+              transition={{ duration: 0.3 }}
+              className="bg-black border border-yellow-400/30 rounded-2xl p-8 max-w-sm w-full text-center relative"
             >
-              ✕
-            </button>
+              <button
+                onClick={() => setOpen(false)}
+                className="absolute top-3 right-4 text-gray-400 hover:text-white text-xl"
+              >
+                ✕
+              </button>
 
-            <h2 className="text-2xl font-bold text-yellow-400 mb-4">
-              Inscripciones
-            </h2>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-4">
+                Inscripciones
+              </h2>
 
-            <p className="text-gray-300 mb-6">
-              Próximamente estaremos habilitando las inscripciones.
-            </p>
+              <p className="text-gray-300 mb-6">
+                Próximamente estaremos habilitando las inscripciones.
+              </p>
 
-            <button
-              onClick={() => setOpen(false)}
-              className="bg-yellow-400 text-black px-5 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
+              <motion.button
+                onClick={() => setOpen(false)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-yellow-400 text-black px-5 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition"
+              >
+                Entendido
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }
