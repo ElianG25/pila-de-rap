@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 export default function Home() {
   const [timeLeft, setTimeLeft] = useState("");
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const targetDate = new Date("2026-05-30T20:00:00");
@@ -31,23 +32,21 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen text-white flex items-center justify-center px-6 text-center overflow-hidden">
-
-      {/* 🎥 YOUTUBE BACKGROUND */}
       <div className="absolute inset-0 overflow-hidden">
         <iframe
-          className="w-full h-full scale-125 pointer-events-none opacity-30"
-          src="https://www.youtube.com/embed/YZ3xyyYlnz0?autoplay=1&mute=1&loop=1&playlist=YZ3xyyYlnz0&controls=0&showinfo=0&modestbranding=1"
+          className="w-full h-full scale-125 pointer-events-none opacity-50 blur-[2px]"
+          src="https://www.youtube.com/embed/YZ3xyyYlnz0?autoplay=1&mute=1&loop=1&playlist=YZ3xyyYlnz0&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
         />
       </div>
 
-      {/* Overlay oscuro */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      {/* Overlay oscuro más suave */}
+      <div className="absolute inset-0 bg-black/60" />
 
-      {/* Glow urbano */}
-      <div className="absolute w-[500px] h-[500px] bg-purple-600/20 blur-[120px] rounded-full top-[-100px] left-[-100px]" />
-      <div className="absolute w-[400px] h-[400px] bg-red-600/20 blur-[120px] rounded-full bottom-[-100px] right-[-100px]" />
+      {/* Glow con color marca */}
+      <div className="absolute w-[500px] h-[500px] bg-yellow-400/20 blur-[120px] rounded-full top-[-100px] left-[-100px]" />
+      <div className="absolute w-[400px] h-[400px] bg-yellow-300/20 blur-[120px] rounded-full bottom-[-100px] right-[-100px]" />
 
       {/* Contenido */}
       <motion.div
@@ -56,11 +55,11 @@ export default function Home() {
         transition={{ duration: 0.8 }}
         className="relative z-10"
       >
-        <h1 className="text-5xl md:text-7xl font-extrabold mb-4 tracking-tight">
-          Pila de Rap
+        <h1 className="text-5xl md:text-7xl font-extrabold mb-4 tracking-tight text-yellow-400">
+          🔋 Pila de Rap 🎤
         </h1>
 
-        <p className="text-lg md:text-xl text-gray-400 mb-6">
+        <p className="text-lg md:text-xl text-gray-300 mb-6">
           Sitio en construcción...
         </p>
 
@@ -69,7 +68,7 @@ export default function Home() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="mb-8 text-xl md:text-2xl font-semibold tracking-wide"
+          className="mb-8 text-xl md:text-2xl font-semibold tracking-wide text-yellow-300"
         >
           ⏳ {timeLeft}
         </motion.div>
@@ -79,9 +78,9 @@ export default function Home() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl"
+          className="bg-black/60 backdrop-blur-xl border border-yellow-400/20 rounded-2xl p-8 max-w-md w-full shadow-2xl"
         >
-          <h2 className="text-2xl font-semibold mb-3">
+          <h2 className="text-2xl font-semibold mb-3 text-yellow-400">
             Próximo Evento
           </h2>
 
@@ -93,18 +92,22 @@ export default function Home() {
             Barras, flow y competencia real. ¿Estás listo?
           </p>
 
-          <button className="relative group bg-white text-black px-6 py-2 rounded-xl font-semibold overflow-hidden">
+          {/* 🔘 BOTÓN */}
+          <button
+            onClick={() => setOpen(true)}
+            className="relative group bg-yellow-400 text-black px-6 py-2 rounded-xl font-bold overflow-hidden"
+          >
             <span className="relative z-10">
               Próximamente inscripciones
             </span>
 
-            <span className="absolute inset-0 bg-gradient-to-r from-purple-500 to-red-500 opacity-0 group-hover:opacity-100 transition duration-300"></span>
+            <span className="absolute inset-0 bg-yellow-300 opacity-0 group-hover:opacity-100 transition duration-300"></span>
           </button>
 
           <a
             href="https://instagram.com/piladera"
             target="_blank"
-            className="block mt-6 text-sm text-gray-500 hover:text-white transition"
+            className="block mt-6 text-sm text-gray-500 hover:text-yellow-300 transition"
           >
             Síguenos en Instagram
           </a>
@@ -114,6 +117,37 @@ export default function Home() {
           © {new Date().getFullYear()} Pila de Rap
         </p>
       </motion.div>
+
+      {/* 🪟 MODAL */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-black border border-yellow-400/30 rounded-2xl p-8 max-w-sm w-full text-center relative">
+
+            {/* Botón cerrar */}
+            <button
+              onClick={() => setOpen(false)}
+              className="absolute top-3 right-4 text-gray-400 hover:text-white text-xl"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">
+              Inscripciones
+            </h2>
+
+            <p className="text-gray-300 mb-6">
+              Próximamente estaremos habilitando las inscripciones.
+            </p>
+
+            <button
+              onClick={() => setOpen(false)}
+              className="bg-yellow-400 text-black px-5 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
