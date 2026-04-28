@@ -165,7 +165,7 @@ export default function Home() {
           </p>
 
           <p className="text-xs text-gray-500 mb-6">
-            📍 Parque público • Entrada libre
+            📍 Tropical Skatepark, Mirador Sur • Entrada libre
           </p>
 
           <motion.button
