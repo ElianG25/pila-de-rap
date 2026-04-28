@@ -1,24 +1,31 @@
 import { NextResponse } from "next/server";
 
-const MAX_CUPOS = 24;
-
 export async function GET() {
   try {
-    const res = await fetch(process.env.SHEETS_GET_URL!);
+    const res = await fetch(process.env.SHEETS_GET_URL!, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Error al consultar Sheets");
+    }
+
     const data = await res.json();
 
-    const total = data.data?.length || 0;
-
     return NextResponse.json({
-      total,
-      restantes: MAX_CUPOS - total,
+      total: data.total ?? 0,
+      restantes: data.restantes ?? 0,
+      max: data.max ?? 24,
     });
+
   } catch (err) {
-    console.error(err);
+    console.error("SLOTS ERROR:", err);
 
     return NextResponse.json({
       total: 0,
-      restantes: MAX_CUPOS,
+      restantes: 0,
+      max: 24,
+      error: true,
     });
   }
 }

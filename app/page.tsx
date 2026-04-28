@@ -18,6 +18,7 @@ export default function Home() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
   const [slots, setSlots] = useState<number | null>(null);
+  const isFull = slots !== null && slots <= 0;
 
   // 👉 Fetch cupos
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function Home() {
             pointer-events-none opacity-50 blur-[2px]
             md:scale-110
           "
-          src="https://www.youtube.com/embed/15qGFxbi8sM?autoplay=1&mute=1&loop=1&playlist=15qGFxbi8sM&controls=0&modestbranding=1"
+          src="https://www.youtube.com/embed/7IH3cXRUKsI?autoplay=1&mute=1&loop=1&playlist=7IH3cXRUKsI&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
           allowFullScreen
@@ -148,7 +149,7 @@ export default function Home() {
         </p>
 
         <p className="text-lg md:text-xl text-gray-300 mb-6">
-          Formatos sorpresas, premios en efectivo y pila de vibras.
+          Formatos sorpresas, premio en efectivo y pila de vibras.
         </p>
 
         {/* ⏳ Countdown */}
@@ -217,12 +218,19 @@ export default function Home() {
 
           {/* BOTÓN */}
           <motion.button
-            onClick={() => setOpen(true)}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="relative group bg-yellow-400 text-black px-6 py-2 rounded-xl font-bold overflow-hidden w-full"
+            onClick={() => {
+              if (!isFull) setOpen(true);
+            }}
+            disabled={isFull}
+            whileHover={!isFull ? { scale: 1.05 } : {}}
+            whileTap={!isFull ? { scale: 0.95 } : {}}
+            className={`relative group px-6 py-2 rounded-xl font-bold overflow-hidden w-full transition
+    ${isFull
+                ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                : "bg-yellow-400 text-black hover:bg-yellow-300"
+              }`}
           >
-            📝 Inscripciones
+            {isFull ? "❌ Inscripciones cerradas" : "📝 Inscripciones"}
           </motion.button>
 
           {/* 🔥 CUPOS DEBAJO DEL BOTÓN */}
@@ -230,10 +238,12 @@ export default function Home() {
             <motion.p
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`text-sm mt-3 font-semibold ${slots <= 5 ? "text-red-400" : "text-yellow-300"
+              className={`text-sm mt-3 font-semibold ${isFull ? "text-red-400" : "text-yellow-300"
                 }`}
             >
-              ⚠️ Quedan {slots} cupos disponibles
+              {isFull
+                ? "❌ Cupos agotados"
+                : `⚠️ Quedan ${slots} cupos disponibles`}
             </motion.p>
           )}
 
@@ -285,7 +295,7 @@ export default function Home() {
               </h2>
 
               <p className="text-yellow-300">
-                Slots: {JSON.stringify(slots)}
+                {JSON.stringify(slots)} CUPOS DISPONIBLES
               </p>
 
               {/* ✅ FORM */}
@@ -296,15 +306,21 @@ export default function Home() {
 
                   if (sending) return;
 
-                  const form = e.target as HTMLFormElement;
+                  const form = e.currentTarget as HTMLFormElement;
 
                   const data = {
-                    nombre: (form.elements.namedItem("nombre") as HTMLInputElement).value,
-                    alias: (form.elements.namedItem("alias") as HTMLInputElement).value,
-                    telefono: (form.elements.namedItem("telefono") as HTMLInputElement).value,
-                    instagram: (form.elements.namedItem("instagram") as HTMLInputElement).value,
+                    nombre: (form.elements.namedItem("nombre") as HTMLInputElement).value.trim(),
+                    alias: (form.elements.namedItem("alias") as HTMLInputElement).value.trim(),
+                    telefono: (form.elements.namedItem("telefono") as HTMLInputElement).value.trim(),
+                    instagram: (form.elements.namedItem("instagram") as HTMLInputElement).value.trim(),
                     fecha: "FECHA 1 | 30 de mayo",
                   };
+
+                  // 🔒 Validación rápida frontend
+                  if (!/^\d{10}$/.test(data.telefono)) {
+                    alert("⚠️ El teléfono debe tener 10 dígitos");
+                    return;
+                  }
 
                   try {
                     setSending(true);
@@ -317,16 +333,34 @@ export default function Home() {
                       body: JSON.stringify(data),
                     });
 
-                    if (!res.ok) throw new Error();
+                    const result = await res.json();
 
-                    setSlots((prev) => (prev !== null ? prev - 1 : prev));
+                    if (!res.ok) {
+                      // 🎯 Manejo inteligente de errores
+                      if (result.error === "CUPOS_AGOTADOS") {
+                        alert("🔥 Se llenaron los cupos");
+                      } else if (result.error === "YA_INSCRITO") {
+                        alert("⚠️ Ya estás inscrito con ese número");
+                      } else {
+                        alert(result.error || "Error inesperado");
+                      }
+                      return;
+                    }
+
+                    // ✅ Usar dato real del backend
+                    if (typeof result.restantes === "number") {
+                      setSlots(result.restantes);
+                    }
+
                     setOpen(false);
                     setSuccess(true);
                     form.reset();
 
                     setTimeout(() => setSuccess(false), 5000);
+
                   } catch (err) {
-                    alert("Error al enviar, intenta de nuevo");
+                    console.error(err);
+                    alert("Error de conexión, intenta de nuevo");
                   } finally {
                     setSending(false);
                   }

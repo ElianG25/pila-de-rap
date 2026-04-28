@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 
-const MAX_CUPOS = 24;
-
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ✅ Validación básica
+    // ✅ Validación básica (rápida, UX)
     if (!body.nombre || !body.alias || !body.telefono) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios" },
@@ -15,44 +13,15 @@ export async function POST(req: Request) {
     }
 
     const phoneRegex = /^\d{10}$/;
-
     if (!phoneRegex.test(body.telefono)) {
       return NextResponse.json(
-        { error: "Teléfono inválido (debe tener 10 dígitos)" },
+        { error: "Teléfono inválido (10 dígitos)" },
         { status: 400 }
       );
     }
 
-    // 🔥 1. OBTENER DATA ACTUAL DESDE SHEETS
-    const getRes = await fetch(process.env.SHEETS_GET_URL!);
-
-    if (!getRes.ok) throw new Error("Error obteniendo datos");
-
-    const sheetData = await getRes.json();
-    const registros = sheetData.data || [];
-
-    // 🔒 2. VALIDAR DUPLICADO (por teléfono)
-    const existe = registros.some(
-      (r: any) => r.telefono === body.telefono
-    );
-
-    if (existe) {
-      return NextResponse.json(
-        { error: "Ya estás inscrito con este número" },
-        { status: 400 }
-      );
-    }
-
-    // 🎯 3. VALIDAR CUPOS
-    if (registros.length >= MAX_CUPOS) {
-      return NextResponse.json(
-        { error: "Cupos llenos" },
-        { status: 400 }
-      );
-    }
-
-    // 👉 4. ENVIAR A GOOGLE SHEETS
-    const sheetsRes = await fetch(process.env.SHEETS_WEBHOOK!, {
+    // 🚀 ENVÍO DIRECTO A APPS SCRIPT (fuente de verdad)
+    const res = await fetch(process.env.SHEETS_WEBHOOK!, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -60,11 +29,14 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
-    if (!sheetsRes.ok) {
-      throw new Error("Error en Sheets");
+    const data = await res.json();
+
+    // ❌ Apps Script decide TODO
+    if (!res.ok) {
+      return NextResponse.json(data, { status: res.status });
     }
 
-    // 📩 5. MENSAJE WHATSAPP
+    // 📩 Mensaje WhatsApp
     const mensaje = `🔥 Gracias por inscribirte en Pila de Ra', *${body.alias}*
 
 🎤 Nos vemos en la plaza
@@ -84,7 +56,7 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
     const encodedMessage = encodeURIComponent(mensaje);
     const whatsappLink = `https://api.whatsapp.com/send?phone=1${body.telefono}&text=${encodedMessage}`;
 
-    // 🤖 6. TELEGRAM
+    // 🤖 Telegram
     await fetch(
       `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
       {
@@ -110,10 +82,10 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
       }
     );
 
-    // 📊 7. RESPUESTA CON CUPOS RESTANTES
+    // ✅ Respuesta final (ya validada por Sheets)
     return NextResponse.json({
       ok: true,
-      cuposRestantes: MAX_CUPOS - (registros.length + 1),
+      restantes: data.restantes,
     });
 
   } catch (error) {
