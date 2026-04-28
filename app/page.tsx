@@ -15,6 +15,9 @@ export default function Home() {
 
   const [open, setOpen] = useState(false);
 
+  const [sending, setSending] = useState(false);
+  const [success, setSuccess] = useState(false);
+
   // ⏳ Loader
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1500);
@@ -77,6 +80,7 @@ export default function Home() {
           src="https://www.youtube.com/embed/15qGFxbi8sM?autoplay=1&mute=1&loop=1&playlist=15qGFxbi8sM&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
+          allowFullScreen
         />
       </div>
 
@@ -132,10 +136,10 @@ export default function Home() {
                 {label === "d"
                   ? "Días"
                   : label === "h"
-                  ? "Horas"
-                  : label === "m"
-                  ? "Min"
-                  : "Seg"}
+                    ? "Horas"
+                    : label === "m"
+                      ? "Min"
+                      : "Seg"}
               </div>
             </motion.div>
           ))}
@@ -180,7 +184,7 @@ export default function Home() {
             className="flex items-center justify-center gap-2 mt-6 text-sm text-gray-500 hover:text-yellow-300 transition hover:scale-105"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7.75 2C4.57 2 2 4.57 2 7.75v8.5C2 19.43 4.57 22 7.75 22h8.5C19.43 22 22 19.43 22 16.25v-8.5C22 4.57 19.43 2 16.25 2h-8.5zm0 2h8.5C18.55 4 20 5.45 20 7.75v8.5c0 2.3-1.45 3.75-3.75 3.75h-8.5C5.45 20 4 18.55 4 16.25v-8.5C4 5.45 5.45 4 7.75 4zm8.25 1.5a1 1 0 100 2 1 1 0 000-2zM12 7a5 5 0 100 10 5 5 0 000-10z"/>
+              <path d="M7.75 2C4.57 2 2 4.57 2 7.75v8.5C2 19.43 4.57 22 7.75 22h8.5C19.43 22 22 19.43 22 16.25v-8.5C22 4.57 19.43 2 16.25 2h-8.5zm0 2h8.5C18.55 4 20 5.45 20 7.75v8.5c0 2.3-1.45 3.75-3.75 3.75h-8.5C5.45 20 4 18.55 4 16.25v-8.5C4 5.45 5.45 4 7.75 4zm8.25 1.5a1 1 0 100 2 1 1 0 000-2zM12 7a5 5 0 100 10 5 5 0 000-10z" />
             </svg>
             Síguenos en Instagram
           </a>
@@ -195,7 +199,7 @@ export default function Home() {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -204,8 +208,10 @@ export default function Home() {
               initial={{ scale: 0.8, opacity: 0, y: 40 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0, y: 40 }}
-              className="bg-black border border-yellow-400/30 rounded-2xl p-8 max-w-sm w-full text-center relative"
+              transition={{ duration: 0.3 }}
+              className="bg-black border border-yellow-400/30 rounded-2xl p-6 md:p-8 max-w-sm w-full text-center relative"
             >
+              {/* ❌ Cerrar */}
               <button
                 onClick={() => setOpen(false)}
                 className="absolute top-3 right-4 text-gray-400 hover:text-white"
@@ -217,22 +223,125 @@ export default function Home() {
                 📝 Inscripciones
               </h2>
 
-              <p className="text-gray-300 mb-6">
-                Tranquilo fiera 😎 Las inscripciones se abrirán pronto. Atentos al internet. Guarden esa feria ($$$).
-              </p>
+              {/* ✅ FORM */}
+              <form
+                className="space-y-4 text-left"
+                onSubmit={async (e) => {
+                  e.preventDefault();
 
-              <motion.button
-                onClick={() => setOpen(false)}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-yellow-400 text-black px-5 py-2 rounded-lg font-semibold"
+                  if (sending) return;
+
+                  const form = e.target as HTMLFormElement;
+
+                  const data = {
+                    nombre: (form.elements.namedItem("nombre") as HTMLInputElement).value,
+                    alias: (form.elements.namedItem("alias") as HTMLInputElement).value,
+                    telefono: (form.elements.namedItem("telefono") as HTMLInputElement).value,
+                    instagram: (form.elements.namedItem("instagram") as HTMLInputElement).value,
+                    fecha: "FECHA 1 | 30 de mayo",
+                  };
+
+                  try {
+                    setSending(true);
+
+                    const res = await fetch("/api/register", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify(data),
+                    });
+
+                    if (!res.ok) throw new Error();
+
+                    setOpen(false);
+                    setSuccess(true);
+                    form.reset();
+
+                    setTimeout(() => setSuccess(false), 5000);
+                  } catch (err) {
+                    alert("Error al enviar, intenta de nuevo");
+                  } finally {
+                    setSending(false);
+                  }
+                }}
               >
-                Entendido
-              </motion.button>
+                {/* Fecha visible */}
+                <div className="w-full p-2 rounded bg-black border border-yellow-400/20 text-gray-300 text-center">
+                  📅 FECHA 1 | 30 de mayo
+                </div>
+
+                {/* Hidden */}
+                <input type="hidden" name="fecha" value="FECHA 1 | 30 de mayo" />
+
+                <input
+                  name="nombre"
+                  placeholder="Nombre real"
+                  required
+                  className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                />
+
+                <input
+                  name="alias"
+                  placeholder="Nombre artístico (MC)"
+                  required
+                  className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                />
+
+                <input
+                  name="telefono"
+                  placeholder="Teléfono / WhatsApp"
+                  required
+                  pattern="\d{10}"
+                  maxLength={10}
+                  inputMode="numeric"
+                  className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                />
+
+                <input
+                  name="instagram"
+                  placeholder="@instagram (opcional)"
+                  className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                />
+
+                <motion.button
+                  type="submit"
+                  disabled={sending}
+                  whileHover={!sending ? { scale: 1.05 } : {}}
+                  whileTap={!sending ? { scale: 0.95 } : {}}
+                  className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition ${sending
+                      ? "bg-yellow-200 text-black cursor-not-allowed"
+                      : "bg-yellow-400 text-black hover:bg-yellow-300"
+                    }`}
+                >
+                  {sending && (
+                    <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                  )}
+                  {sending ? "Enviando..." : "Enviar inscripción"}
+                </motion.button>
+              </form>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </main>
+      <AnimatePresence>
+  {success && (
+    <motion.div
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 40 }}
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+    >
+      <div className="bg-black border border-yellow-400/30 text-yellow-300 px-6 py-4 rounded-xl shadow-xl max-w-sm text-center">
+        🔥 Ya estás dentro
+
+        <p className="text-sm text-gray-300 mt-2">
+          Pronto te llegará un mensaje con los detalles.
+        </p>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
+      </main>
   );
 }
