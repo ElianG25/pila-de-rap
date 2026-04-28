@@ -17,6 +17,35 @@ export default function Home() {
 
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [slots, setSlots] = useState<number | null>(null);
+
+  // 👉 Fetch cupos
+  useEffect(() => {
+    const fetchSlots = async () => {
+      try {
+        const res = await fetch("/api/slots", {
+          cache: "no-store",
+        });
+
+        const text = await res.text();
+
+        console.log("RAW RESPONSE:", text);
+
+        const data = JSON.parse(text);
+
+        console.log("PARSED DATA:", data);
+
+        const value = data.restantes ?? data.slots ?? null;
+
+        setSlots(typeof value === "number" ? value : Number(value));
+      } catch (err) {
+        console.error("ERROR FETCHING SLOTS:", err);
+        setSlots(null);
+      }
+    };
+
+    fetchSlots();
+  }, []);
 
   // ⏳ Loader
   useEffect(() => {
@@ -160,14 +189,33 @@ export default function Home() {
             📅 Sábado, 30 de mayo
           </p>
 
-          <p className="text-gray-400 mb-2">
-            Barras, flow y competencia real.
+          <p className="text-lg mb-2">
+            🕒 3:00 PM
           </p>
+
+          <div className="flex justify-center gap-3 mb-6">
+            {["???", "???", "???"].map((juez, i) => (
+              <motion.div
+                key={i}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="bg-black/60 border border-yellow-400/20 rounded-lg px-4 py-3 min-w-[80px]"
+              >
+                <div className="text-sm text-yellow-300 font-bold">
+                  {juez}
+                </div>
+                <div className="text-xs text-gray-400 uppercase">
+                  Juez
+                </div>
+              </motion.div>
+            ))}
+          </div>
 
           <p className="text-xs text-gray-500 mb-6">
             📍 Tropical Skatepark, Mirador Sur • Entrada libre
           </p>
 
+          {/* BOTÓN */}
           <motion.button
             onClick={() => setOpen(true)}
             whileHover={{ scale: 1.05 }}
@@ -177,6 +225,19 @@ export default function Home() {
             📝 Inscripciones
           </motion.button>
 
+          {/* 🔥 CUPOS DEBAJO DEL BOTÓN */}
+          {slots !== null && (
+            <motion.p
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`text-sm mt-3 font-semibold ${slots <= 5 ? "text-red-400" : "text-yellow-300"
+                }`}
+            >
+              ⚠️ Quedan {slots} cupos disponibles
+            </motion.p>
+          )}
+
+          {/* INSTAGRAM */}
           <a
             href="https://instagram.com/piladera"
             target="_blank"
@@ -223,6 +284,10 @@ export default function Home() {
                 📝 Inscripciones
               </h2>
 
+              <p className="text-yellow-300">
+                Slots: {JSON.stringify(slots)}
+              </p>
+
               {/* ✅ FORM */}
               <form
                 className="space-y-4 text-left"
@@ -254,6 +319,7 @@ export default function Home() {
 
                     if (!res.ok) throw new Error();
 
+                    setSlots((prev) => (prev !== null ? prev - 1 : prev));
                     setOpen(false);
                     setSuccess(true);
                     form.reset();
@@ -310,8 +376,8 @@ export default function Home() {
                   whileHover={!sending ? { scale: 1.05 } : {}}
                   whileTap={!sending ? { scale: 0.95 } : {}}
                   className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition ${sending
-                      ? "bg-yellow-200 text-black cursor-not-allowed"
-                      : "bg-yellow-400 text-black hover:bg-yellow-300"
+                    ? "bg-yellow-200 text-black cursor-not-allowed"
+                    : "bg-yellow-400 text-black hover:bg-yellow-300"
                     }`}
                 >
                   {sending && (
@@ -325,23 +391,23 @@ export default function Home() {
         )}
       </AnimatePresence>
       <AnimatePresence>
-  {success && (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 40 }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
-    >
-      <div className="bg-black border border-yellow-400/30 text-yellow-300 px-6 py-4 rounded-xl shadow-xl max-w-sm text-center">
-        🔥 Ya estás dentro
+        {success && (
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 40 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+          >
+            <div className="bg-black border border-yellow-400/30 text-yellow-300 px-6 py-4 rounded-xl shadow-xl max-w-sm text-center">
+              🔥 Ya estás dentro
 
-        <p className="text-sm text-gray-300 mt-2">
-          Pronto te llegará un mensaje con los detalles.
-        </p>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
-      </main>
+              <p className="text-sm text-gray-300 mt-2">
+                Pronto te llegará un mensaje con los detalles.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
   );
 }
