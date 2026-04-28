@@ -19,7 +19,7 @@ export default function Home() {
   const [success, setSuccess] = useState(false);
 
   const [slots, setSlots] = useState<number | null>(null);
-  const isFull = slots !== null && slots <= 0;
+  const isFull = typeof slots === "number" && slots <= 0;
 
   // 🔥 MCs (tipado básico mejorado)
   const [mcs, setMcs] = useState<
@@ -48,10 +48,26 @@ export default function Home() {
 
         const data = await res.json();
 
-        console.log("DATA:", data);
+        console.log("DATA RAW:", data);
 
-        setMcs(data.data || []);
-        setSlots(data.restantes ?? null);
+        // ✅ MCs
+        setMcs(Array.isArray(data.data) ? data.data : []);
+
+        // ✅ Slots (CORRECCIÓN CLAVE)
+        const rawSlots = data.restantes;
+
+        let parsedSlots: number | null = null;
+
+        if (typeof rawSlots === "number") {
+          parsedSlots = rawSlots;
+        } else if (typeof rawSlots === "string") {
+          const n = Number(rawSlots);
+          parsedSlots = isNaN(n) ? null : n;
+        }
+
+        console.log("SLOTS PARSED:", parsedSlots);
+
+        setSlots(parsedSlots);
 
       } catch (err) {
         console.error("Error cargando datos:", err);
@@ -319,18 +335,20 @@ export default function Home() {
               </motion.button>
 
               {/* CUPOS */}
-              {slots !== null && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className={`text-sm mt-3 font-semibold text-center ${isFull ? "text-red-400" : "text-yellow-300"
-                    }`}
-                >
-                  {isFull
-                    ? "❌ Cupos agotados"
-                    : `⚠️ Quedan ${slots} cupos disponibles`}
-                </motion.p>
-              )}
+{typeof slots === "number" && !isNaN(slots) && (
+  <motion.p
+    key={slots} // 👈 fuerza re-render cuando cambia
+    initial={{ opacity: 0, y: 5 }}
+    animate={{ opacity: 1, y: 0 }}
+    className={`text-sm mt-3 font-semibold text-center ${
+      slots <= 0 ? "text-red-400" : "text-yellow-300"
+    }`}
+  >
+    {slots <= 0
+      ? "❌ Cupos agotados"
+      : `⚠️ Quedan ${slots} cupos disponibles`}
+  </motion.p>
+)}
 
               {/* INSTAGRAM */}
               <a
