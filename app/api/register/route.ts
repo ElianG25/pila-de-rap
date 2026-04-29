@@ -46,6 +46,7 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
 
 💰 *Inscripción:* $200
 🕒 *Hora:* 3:00 PM
+📆 *Fecha:* Sabado, 30 de mayo
 
 🏆 *PREMIOS*
 🥇 Medalla + efectivo
