@@ -450,7 +450,7 @@ export default function Home() {
                 {/* BOTTOM */}
                 <div className="text-center">
                   <p className="text-xs opacity-80">
-                    ⏳ Próximo reveal
+                    ⏳ Próxima revelación
                   </p>
 
                   <div className="flex justify-center gap-2 mt-1 text-sm font-bold">
@@ -476,7 +476,7 @@ export default function Home() {
                   </h3>
 
                   <p className="text-xs text-gray-400 mt-1">
-                    Próximo reveal en
+                    Próxima revelación en
                   </p>
 
                   <div className="flex justify-center gap-2 mt-2 text-yellow-300 text-sm font-semibold">
