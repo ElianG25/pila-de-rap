@@ -13,6 +13,12 @@ export default function Home() {
     s: 0,
   });
 
+  const jueces = [
+              {nombre: "H-OFER", ig: "mchoferrap" },
+              {nombre: "???", ig: null },
+              {nombre: "???", ig: null },
+              ];
+
   const [open, setOpen] = useState(false);
 
   const [sending, setSending] = useState(false);
@@ -265,16 +271,29 @@ export default function Home() {
 
               {/* JUECES */}
               <div className="flex justify-center gap-3 mb-6">
-                {["???", "???", "???"].map((juez, i) => (
+                {jueces.map((juez, i) => (
                   <motion.div
                     key={i}
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="bg-black/60 border border-yellow-400/20 rounded-lg px-3 py-2 min-w-[70px]"
+                    className="bg-black/60 border border-yellow-400/20 rounded-lg px-3 py-2 min-w-[80px] text-center hover:scale-105"
                   >
-                    <div className="text-sm text-yellow-300 font-bold">
-                      {juez}
-                    </div>
+                    {/* 👇 Nombre clickeable solo si tiene IG */}
+                    {juez.ig ? (
+                      <a
+                        href={`https://instagram.com/${juez.ig}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-yellow-300 font-bold hover:underline hover:text-yellow-200 transition hover:scale-105"
+                      >
+                        {juez.nombre}
+                      </a>
+                    ) : (
+                      <div className="text-sm text-yellow-300 font-bold">
+                        {juez.nombre}
+                      </div>
+                    )}
+
                     <div className="text-[10px] text-gray-400 uppercase">
                       Juez
                     </div>
@@ -335,33 +354,49 @@ export default function Home() {
               </motion.button>
 
               {/* CUPOS */}
-{typeof slots === "number" && !isNaN(slots) && (
-  <motion.p
-    key={slots} // 👈 fuerza re-render cuando cambia
-    initial={{ opacity: 0, y: 5 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`text-sm mt-3 font-semibold text-center ${
-      slots <= 0 ? "text-red-400" : "text-yellow-300"
-    }`}
-  >
-    {slots <= 0
-      ? "❌ Cupos agotados"
-      : `⚠️ Quedan ${slots} cupos disponibles`}
-  </motion.p>
-)}
+              {typeof slots === "number" && !isNaN(slots) && (
+                <motion.p
+                  key={slots} // 👈 fuerza re-render cuando cambia
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`text-sm mt-3 font-semibold text-center ${slots <= 0 ? "text-red-400" : "text-yellow-300"
+                    }`}
+                >
+                  {slots <= 0
+                    ? "❌ Cupos agotados"
+                    : `⚠️ Quedan ${slots} cupos disponibles`}
+                </motion.p>
+              )}
 
-              {/* INSTAGRAM */}
-              <a
-                href="https://instagram.com/piladera"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 mt-6 text-sm text-gray-500 hover:text-yellow-300 transition"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M7.75 2C4.57 2 2 4.57 2 7.75v8.5C2 19.43 4.57 22 7.75 22h8.5C19.43 22 22 19.43 22 16.25v-8.5C22 4.57 19.43 2 16.25 2h-8.5zm0 2h8.5C18.55 4 20 5.45 20 7.75v8.5c0 2.3-1.45 3.75-3.75 3.75h-8.5C5.45 20 4 18.55 4 16.25v-8.5C4 5.45 5.45 4 7.75 4zm8.25 1.5a1 1 0 100 2 1 1 0 000-2zM12 7a5 5 0 100 10 5 5 0 000-10z" />
-                </svg>
-                Síguenos en Instagram
-              </a>
+              <div className="flex items-center justify-center gap-6 mt-6 flex-wrap">
+
+                {/* YouTube */}
+                <a
+                  href="https://www.youtube.com/@piladerap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-yellow-400/20 hover:bg-yellow-400 hover:text-black transition"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31.6 31.6 0 0 0 0 12a31.6 31.6 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.6 31.6 0 0 0 24 12a31.6 31.6 0 0 0-.5-5.8zM9.6 15.5v-7l6.2 3.5-6.2 3.5z" />
+                  </svg>
+                  YouTube
+                </a>
+
+                {/* Instagram */}
+                <a
+                  href="https://instagram.com/piladera"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/40 border border-yellow-400/20 hover:bg-yellow-400 hover:text-black transition"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.75 2C4.57 2 2 4.57 2 7.75v8.5C2 19.43 4.57 22 7.75 22h8.5C19.43 22 22 19.43 22 16.25v-8.5C22 4.57 19.43 2 16.25 2h-8.5zm0 2h8.5C18.55 4 20 5.45 20 7.75v8.5c0 2.3-1.45 3.75-3.75 3.75h-8.5C5.45 20 4 18.55 4 16.25v-8.5C4 5.45 5.45 4 7.75 4zm8.25 1.5a1 1 0 100 2 1 1 0 000-2zM12 7a5 5 0 100 10 5 5 0 000-10z" />
+                  </svg>
+                  Instagram
+                </a>
+
+              </div>
             </div>
           </motion.div>
 
@@ -454,7 +489,7 @@ export default function Home() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-sm">
-                  {Array.from({ length: 24 }).map((_, i) => {
+                  {Array.from({ length: 30 }).map((_, i) => {
                     const mc = mcs[i];
 
                     return (
@@ -527,7 +562,7 @@ export default function Home() {
               {/* 🔥 CONTADOR SEGURO */}
               {slots !== null && (
                 <p className="text-yellow-300 text-sm mb-4">
-                  🔥 {24 - slots}/{24} MCs confirmados
+                  🔥 {30 - slots}/{30} MCs confirmados
                 </p>
               )}
 

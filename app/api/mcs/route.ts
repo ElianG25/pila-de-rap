@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const START_DATE = new Date("2026-04-28");
-const MAX_CUPOS = 24;
+const MAX_CUPOS = 30;
 
 // 🎲 shuffle con seed (estable)
 function seededShuffle(array: any[], seed: number) {
@@ -59,7 +59,7 @@ export async function GET() {
     return NextResponse.json({
       data: result,
       total,
-      restantes,   // 👈 🔥 ESTO ES LO QUE TE FALTABA
+      restantes,
       max: MAX_CUPOS,
       revealed: visibleCount,
     });
