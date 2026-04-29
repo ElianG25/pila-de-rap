@@ -26,7 +26,12 @@ export async function GET() {
     const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     // 🎤 visibles (1 por día)
-    const visibleCount = Math.max(0, daysPassed + 1);
+    const MC_PER_DAY = 2;
+
+    const visibleCount = Math.max(
+      0,
+      Math.min(data.length, (daysPassed + 1) * MC_PER_DAY)
+    );
 
     const result = data.map((mc: any, index: number) => ({
       ...mc,
