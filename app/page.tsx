@@ -14,10 +14,10 @@ export default function Home() {
   });
 
   const jueces = [
-              {nombre: "H-OFER", ig: "mchoferrap" },
-              {nombre: "???", ig: null },
-              {nombre: "???", ig: null },
-              ];
+    { nombre: "H-OFER", ig: "mchoferrap" },
+    { nombre: "???", ig: null },
+    { nombre: "???", ig: null },
+  ];
 
   const [open, setOpen] = useState(false);
 
@@ -85,7 +85,7 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // 🔁 Auto flip cada 6 segundos
+  // 🔁 Auto flip cada 10 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       setFlipped((prev) => !prev);
@@ -94,7 +94,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // ⏳ Próximo reveal (cada medianoche)
+  // ⏳ Próxima revelación (cada medianoche)
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -488,8 +488,8 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  {Array.from({ length: 30 }).map((_, i) => {
+                <div className="grid grid-cols-4 gap-2 text-sm">
+                  {Array.from({ length: 32 }).map((_, i) => {
                     const mc = mcs[i];
 
                     return (
@@ -562,7 +562,7 @@ export default function Home() {
               {/* 🔥 CONTADOR SEGURO */}
               {slots !== null && (
                 <p className="text-yellow-300 text-sm mb-4">
-                  🔥 {30 - slots}/{30} MCs confirmados
+                  🔥 {32 - slots}/{32} MCs confirmados
                 </p>
               )}
 
