@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const START_DATE = new Date("2026-04-28T19:00:00");
+const START_DATE = new Date("2026-04-27T19:00:00");
 const MAX_CUPOS = 32;
 const MC_PER_DROP = 2;
 
