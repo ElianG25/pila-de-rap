@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
-const START_DATE = new Date("2026-04-28");
+const START_DATE = new Date("2026-04-28T19:00:00");
 const MAX_CUPOS = 32;
+const MC_PER_DROP = 2;
 
 export async function GET() {
   try {
@@ -9,30 +10,41 @@ export async function GET() {
       cache: "no-store",
     });
 
-    if (!res.ok) throw new Error("Error fetching sheets");
+    if (!res.ok) {
+      throw new Error("Error fetching sheets");
+    }
 
     const json = await res.json();
 
-    // ✅ ORDEN ORIGINAL DEL SHEET (sin shuffle)
+    // ✅ Orden real del Sheets
     const data = json.data || [];
 
-    // 📊 métricas reales
+    // 📊 Métricas
     const total = data.length;
     const restantes = Math.max(0, MAX_CUPOS - total);
 
-    // ⏳ días desde inicio
+    // ⏰ Hora actual
     const now = new Date();
-    const diffTime = now.getTime() - START_DATE.getTime();
-    const daysPassed = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    // 🎤 visibles (1 por día)
-    const MC_PER_DAY = 2;
+    // 🔥 Diferencia desde el primer reveal
+    const diffMs = now.getTime() - START_DATE.getTime();
 
-    const visibleCount = Math.max(
-      0,
-      Math.min(data.length, (daysPassed + 1) * MC_PER_DAY)
+    // ❗ Si todavía no llega el primer reveal
+    let revealsPassed = 0;
+
+    if (diffMs >= 0) {
+      revealsPassed = Math.floor(
+        diffMs / (1000 * 60 * 60 * 24)
+      ) + 1;
+    }
+
+    // 🎤 Cantidad visible
+    const visibleCount = Math.min(
+      data.length,
+      revealsPassed * MC_PER_DROP
     );
 
+    // ✅ Aplicar visible
     const result = data.map((mc: any, index: number) => ({
       ...mc,
       visible: index < visibleCount,
