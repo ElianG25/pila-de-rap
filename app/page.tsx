@@ -18,7 +18,7 @@ export default function Home() {
   const jueces = [
     { nombre: "H-OFER", ig: "mchoferrap" },
     { nombre: "???", ig: null },
-    { nombre: "???", ig: null },
+    { nombre: "JAVIER", ig: "javierreynoso20" },
   ];
 
   const [open, setOpen] = useState(false);
