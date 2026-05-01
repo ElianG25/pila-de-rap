@@ -115,24 +115,30 @@ export default function Home() {
 
   // ⏳ Próxima revelación
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
+  const interval = setInterval(() => {
+    const now = new Date();
 
-      const tomorrow = new Date(now);
-      tomorrow.setDate(now.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+    // ⏰ Próximo reveal → 7:00 PM
+    const nextRevealDate = new Date(now);
 
-      const diff = tomorrow.getTime() - now.getTime();
+    nextRevealDate.setHours(19, 0, 0, 0); // 19 = 7PM
 
-      setNextReveal({
-        h: Math.floor((diff / (1000 * 60 * 60)) % 24),
-        m: Math.floor((diff / (1000 * 60)) % 60),
-        s: Math.floor((diff / 1000) % 60),
-      });
-    }, 1000);
+    // 🔥 Si ya pasaron las 7PM de hoy → usar mañana
+    if (now.getTime() >= nextRevealDate.getTime()) {
+      nextRevealDate.setDate(nextRevealDate.getDate() + 1);
+    }
 
-    return () => clearInterval(interval);
-  }, []);
+    const diff = nextRevealDate.getTime() - now.getTime();
+
+    setNextReveal({
+      h: Math.floor((diff / (1000 * 60 * 60)) % 24),
+      m: Math.floor((diff / (1000 * 60)) % 60),
+      s: Math.floor((diff / 1000) % 60),
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, []);
 
   // ⏳ Loader
   useEffect(() => {
