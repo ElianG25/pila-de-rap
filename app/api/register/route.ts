@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🚀 ENVÍO DIRECTO A APPS SCRIPT (fuente de verdad)
+    // 🚀 ENVIAR A APPS SCRIPT
     const res = await fetch(process.env.SHEETS_WEBHOOK!, {
       method: "POST",
       headers: {
@@ -29,11 +29,33 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
-    const data = await res.json();
+    // ⚠️ Apps Script responde mejor como text()
+    const raw = await res.text();
 
-    // ❌ Apps Script decide TODO
-    if (!res.ok) {
-      return NextResponse.json(data, { status: res.status });
+    console.log("APPS SCRIPT RAW:", raw);
+
+    let data: any = {};
+
+    try {
+      data = JSON.parse(raw);
+    } catch (err) {
+      console.error("JSON parse error:", err);
+
+      return NextResponse.json(
+        { error: "Respuesta inválida del backend Sheets" },
+        { status: 500 }
+      );
+    }
+
+    // ❌ VALIDACIONES DEL BACKEND
+    if (!data.ok) {
+      return NextResponse.json(
+        {
+          error: data.error || "Error desconocido",
+          restantes: data.restantes ?? null,
+        },
+        { status: 400 }
+      );
     }
 
     // 📩 Mensaje WhatsApp
