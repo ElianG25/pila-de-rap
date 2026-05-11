@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -17,7 +17,7 @@ export default function Home() {
 
   const jueces = [
     { nombre: "H-OFER", ig: "mchoferrap" },
-    { nombre: "FELPA", ig: "felpadivo" },
+    { nombre: "???", ig: null },
     { nombre: "JAVIER", ig: "javierreynoso20" },
   ];
 
@@ -33,8 +33,13 @@ export default function Home() {
 
   // 🔥 MCs
   const [mcs, setMcs] = useState<
-    { alias: string; visible: boolean }[]
+    { alias: string; visible: boolean; justRevealed?: boolean }[]
   >([]);
+
+  const [serverOffset, setServerOffset] = useState(0);
+  const [nextRevealAt, setNextRevealAt] = useState<number | null>(null);
+  const [hypeCount, setHypeCount] = useState(0);
+  const [isLive, setIsLive] = useState(false);
 
   // 🔁 Persistencia de vista (MEJORADO)
   useEffect(() => {
@@ -61,12 +66,15 @@ export default function Home() {
     s: 0,
   });
 
+  const syncedNow = useCallback(() => Date.now() + serverOffset, [serverOffset]);
+
   const getNextRevealDate = useCallback(() => {
-    const now = new Date();
+    if (nextRevealAt) return new Date(nextRevealAt);
+
+    const now = new Date(syncedNow());
     const next = new Date(now);
 
     // 7:00 PM República Dominicana = 23:00 UTC.
-    // Usar UTC evita que Vercel/servidor adelante o atrase la revelación.
     next.setUTCHours(23, 0, 0, 0);
 
     if (now.getTime() >= next.getTime()) {
@@ -74,7 +82,7 @@ export default function Home() {
     }
 
     return next;
-  }, []);
+  }, [nextRevealAt, syncedNow]);
 
   // 🎤 Fetch DATA
   const fetchData = useCallback(async () => {
@@ -89,6 +97,18 @@ export default function Home() {
 
       // ✅ MCs
       setMcs(Array.isArray(data.data) ? data.data : []);
+
+      if (typeof data.serverTime === "number") {
+        setServerOffset(data.serverTime - Date.now());
+      }
+
+      if (typeof data.nextRevealAt === "number") {
+        setNextRevealAt(data.nextRevealAt);
+      }
+
+      if (typeof data.hypeCount === "number") {
+        setHypeCount(data.hypeCount);
+      }
 
       // ✅ Slots robusto
       const rawSlots = data.restantes;
@@ -117,6 +137,49 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // 🔴 Tiempo real vía Server-Sent Events: sincroniza reloj, hype y refresca al reveal.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("EventSource" in window)) return;
+
+    const source = new EventSource("/api/realtime");
+
+    source.addEventListener("open", () => setIsLive(true));
+
+    source.addEventListener("tick", (event) => {
+      try {
+        const payload = JSON.parse((event as MessageEvent).data);
+
+        if (typeof payload.serverTime === "number") {
+          setServerOffset(payload.serverTime - Date.now());
+        }
+
+        if (typeof payload.nextRevealAt === "number") {
+          setNextRevealAt(payload.nextRevealAt);
+        }
+
+        if (typeof payload.hypeCount === "number") {
+          setHypeCount(payload.hypeCount);
+        }
+
+        if (typeof payload.nextRevealAt === "number") {
+          const diff = payload.nextRevealAt - payload.serverTime;
+          if (diff <= 1500) fetchData();
+        }
+      } catch (error) {
+        console.error("Realtime payload inválido:", error);
+      }
+    });
+
+    source.addEventListener("error", () => {
+      setIsLive(false);
+    });
+
+    return () => {
+      source.close();
+      setIsLive(false);
+    };
+  }, [fetchData]);
+
   // 🔁 Auto flip (SOLO cuando estás en la vista de MCs)
   useEffect(() => {
     if (view !== "mcs") return;
@@ -131,7 +194,7 @@ export default function Home() {
   // ⏳ Próxima revelación
   useEffect(() => {
     const updateNextReveal = () => {
-      const diff = Math.max(0, getNextRevealDate().getTime() - Date.now());
+      const diff = Math.max(0, getNextRevealDate().getTime() - syncedNow());
 
       setNextReveal({
         h: Math.floor((diff / (1000 * 60 * 60)) % 24),
@@ -149,7 +212,7 @@ export default function Home() {
     const interval = setInterval(updateNextReveal, 1000);
 
     return () => clearInterval(interval);
-  }, [fetchData, getNextRevealDate]);
+  }, [fetchData, getNextRevealDate, syncedNow]);
 
   // ⏳ Loader
   useEffect(() => {
@@ -181,15 +244,57 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
-  // 🔥 Loader UI
+  const visibleMcs = useMemo(() => mcs.filter((mc) => mc.visible), [mcs]);
+  const revealedCount = visibleMcs.length;
+
+  const shareLineup = useCallback(async () => {
+    const url = typeof window !== "undefined" ? window.location.href : "";
+    const text = `🔥 Ya hay ${revealedCount} MCs revelados en PILA DE RA'. Próximo drop hoy a las 7:00 PM.`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "PILA DE RA' - MC Reveal",
+          text,
+          url,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      alert("Link copiado para compartir 🔥");
+    } catch (error) {
+      console.error("No se pudo compartir:", error);
+    }
+  }, [revealedCount]);
+
+  // 🔥 Skeleton loading elegante
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+      <div className="fixed inset-0 bg-black text-white flex items-center justify-center z-50 px-5">
+        <div className="w-full max-w-md rounded-3xl border border-yellow-400/15 bg-white/[0.03] p-5 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-yellow-400/20 animate-pulse" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 w-2/3 rounded-full bg-yellow-400/20 animate-pulse" />
+              <div className="h-3 w-1/2 rounded-full bg-white/10 animate-pulse" />
+            </div>
+          </div>
 
-          <p className="text-yellow-400 text-xs tracking-[0.3em] animate-pulse">
-            PILA DE RA'
+          <div className="h-44 rounded-3xl bg-gradient-to-br from-yellow-400/20 via-white/5 to-transparent animate-pulse" />
+
+          <div className="grid grid-cols-4 gap-2 mt-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-11 rounded-xl bg-white/10 animate-pulse"
+                style={{ animationDelay: `${i * 70}ms` }}
+              />
+            ))}
+          </div>
+
+          <p className="mt-5 text-center text-yellow-400 text-xs tracking-[0.3em] animate-pulse">
+            CARGANDO LINEUP
           </p>
         </div>
       </div>
@@ -198,7 +303,7 @@ export default function Home() {
 
   return (
 
-    <main className="relative min-h-screen overflow-hidden bg-black text-white">
+    <main className="relative min-h-[100svh] overflow-hidden bg-black text-white touch-manipulation">
 
       {/* 🎥 VIDEO BACKGROUND */}
       <div className="fixed inset-0 overflow-hidden z-0">
@@ -779,6 +884,198 @@ export default function Home() {
               }}
               className="w-full max-w-xl mx-auto"
             >
+              <div className="mb-5 grid grid-cols-2 gap-3 px-1">
+
+                {/* 🔥 HYPE LIVE */}
+                <motion.div
+                  initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{
+                    duration: 0.45,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  whileHover={{
+                    y: -3,
+                    scale: 1.02,
+                  }}
+                  className="
+      relative overflow-hidden
+      rounded-2xl
+      border border-yellow-400/20
+      bg-gradient-to-br from-yellow-400/15 via-yellow-300/10 to-orange-400/15
+      p-4
+      text-center
+      shadow-[0_0_35px_rgba(250,204,21,0.10)]
+      backdrop-blur-xl
+    "
+                >
+
+                  {/* Glow */}
+                  <div className="absolute inset-0 bg-yellow-300/10 blur-3xl pointer-events-none" />
+
+                  {/* Live Pulse */}
+                  <motion.div
+                    animate={{
+                      scale: [1, 1.15, 1],
+                      opacity: [0.5, 1, 0.5],
+                    }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1.8,
+                      ease: "easeInOut",
+                    }}
+                    className="
+        absolute top-3 right-3
+        w-2.5 h-2.5
+        rounded-full
+        bg-green-400
+        shadow-[0_0_14px_rgba(74,222,128,0.9)]
+      "
+                  />
+
+                  {/* Label */}
+                  <p className="
+      text-[10px]
+      uppercase
+      tracking-[0.35em]
+      text-yellow-100/70
+      font-bold
+    ">
+                    🔥 Hype en vivo
+                  </p>
+
+                  {/* Number */}
+                  <motion.p
+                    key={hypeCount}
+                    initial={{
+                      opacity: 0,
+                      scale: 0.82,
+                      filter: "blur(10px)",
+                    }}
+                    animate={{
+                      opacity: 1,
+                      scale: 1,
+                      filter: "blur(0px)",
+                    }}
+                    transition={{
+                      duration: 0.45,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="
+        mt-2
+        text-3xl
+        md:text-4xl
+        font-black
+        tracking-tight
+        text-yellow-300
+        drop-shadow-[0_0_18px_rgba(250,204,21,0.45)]
+      "
+                  >
+                    {hypeCount.toLocaleString("es-DO")}
+                  </motion.p>
+
+                  {/* Subtitle */}
+                  <p className="
+      mt-1
+      text-[11px]
+      text-yellow-100/55
+      tracking-wide
+    ">
+                    personas esperando el reveal ⚡
+                  </p>
+
+                </motion.div>
+
+                {/* 🚀 SHARE BUTTON */}
+                <motion.button
+                  type="button"
+                  whileHover={{
+                    y: -3,
+                    scale: 1.02,
+                  }}
+                  whileTap={{
+                    scale: 0.96,
+                  }}
+                  onClick={shareLineup}
+                  className="
+      relative overflow-hidden
+      rounded-2xl
+      border border-yellow-400/30
+      bg-yellow-400
+      text-black
+      p-4
+      text-center
+      font-black
+      shadow-[0_0_35px_rgba(250,204,21,0.20)]
+      transition-all
+      duration-300
+    "
+                >
+
+                  {/* Shine */}
+                  <motion.div
+                    animate={{
+                      x: ["-120%", "220%"],
+                    }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 2.5,
+                      ease: "easeInOut",
+                    }}
+                    className="
+        absolute inset-y-0
+        w-1/2
+        bg-white/25
+        blur-xl
+        rotate-12
+      "
+                  />
+
+                  {/* Top */}
+                  <span className="
+      relative z-10
+      block
+      text-[10px]
+      uppercase
+      tracking-[0.3em]
+      opacity-70
+    ">
+                    Compartir
+                  </span>
+
+                  {/* Main */}
+                  <span className="
+      relative z-10
+      mt-2
+      block
+      text-lg
+      md:text-xl
+      leading-none
+    ">
+                    🚀 Lineup
+                  </span>
+
+                  {/* Bottom */}
+                  <span className="
+      relative z-10
+      mt-2
+      block
+      text-[11px]
+      font-semibold
+      opacity-70
+    ">
+                    súbelo a stories 🔥
+                  </span>
+
+                </motion.button>
+
+              </div>
+
+              <div className="mb-4 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.22em] text-gray-400">
+                <span className={`h-2 w-2 rounded-full ${isLive ? "bg-green-400" : "bg-yellow-400"}`} />
+                {isLive ? "Tiempo real activo" : "Sincronizando cada minuto"}
+              </div>
+
               {/* 🔥 FLIP CARD MCs */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.96, y: 20 }}
@@ -795,45 +1092,123 @@ export default function Home() {
                 >
 
                   {/* 🟡 FRONT */}
-                  <div className="absolute inset-0 bg-yellow-400 text-black rounded-2xl p-6 flex flex-col justify-between [backface-visibility:hidden]">
+                  <div className="absolute inset-0 overflow-hidden bg-yellow-400 text-black rounded-2xl p-5 sm:p-6 flex flex-col justify-between [backface-visibility:hidden]">
+
+                    {/* BACKGROUND FX */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      <div className="absolute -top-20 -right-20 w-52 h-52 rounded-full bg-white/20 blur-3xl" />
+                      <div className="absolute -bottom-24 -left-20 w-60 h-60 rounded-full bg-orange-500/20 blur-3xl" />
+                      <div className="absolute inset-0 opacity-[0.08] bg-[radial-gradient(circle_at_1px_1px,#000_1px,transparent_0)] [background-size:18px_18px]" />
+                    </div>
 
                     {/* TOP */}
-                    <div className="text-center">
-                      <p className="text-[10px] uppercase tracking-[0.3em] opacity-70 mb-2">
-                        Último MC revelado
-                      </p>
+                    <div className="relative z-10 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] uppercase tracking-[0.28em] opacity-65 font-black">
+                          Último MC revelado
+                        </p>
 
-                      <span className="text-[10px] px-2 py-1 bg-black/10 rounded-full font-bold">
-                        🔥 NUEVO
-                      </span>
+                        <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-black/10 px-3 py-1">
+                          <span className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.9)]" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.18em]">
+                            Live drop
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-[10px] uppercase tracking-[0.18em] opacity-60 font-bold">
+                          Revelados
+                        </p>
+                        <p className="text-2xl font-black leading-none">
+                          {revealedCount}
+                          <span className="text-sm opacity-50">/{mcs.length || 32}</span>
+                        </p>
+                      </div>
                     </div>
 
                     {/* CENTER */}
-                    <div className="flex-1 flex items-center justify-center">
+                    <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6">
                       {(() => {
-                        const visibles = mcs.filter(m => m.visible);
-                        const last = visibles[visibles.length - 1];
+                        const last = visibleMcs[visibleMcs.length - 1];
+                        const previous = visibleMcs[visibleMcs.length - 2];
 
                         return last ? (
-                          <h3 className="text-4xl md:text-5xl font-black text-center leading-tight">
-                            🎤 {last.alias}
-                          </h3>
+                          <>
+                            <motion.div
+                              key={last.alias}
+                              initial={{ opacity: 0, scale: 0.75, filter: "blur(14px)" }}
+                              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                              className="text-center"
+                            >
+                              <p className="text-[11px] uppercase tracking-[0.3em] opacity-55 font-black mb-2">
+                                Ahora en tarima
+                              </p>
+
+                              <h3 className="text-5xl sm:text-6xl md:text-7xl font-black text-center leading-none drop-shadow-[0_0_22px_rgba(0,0,0,0.30)]">
+                                🎤 {last.alias}
+                              </h3>
+                            </motion.div>
+
+                            {previous && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.25 }}
+                                className="mt-5 rounded-2xl bg-black/10 px-4 py-3 text-center"
+                              >
+                                <p className="text-[10px] uppercase tracking-[0.22em] opacity-55 font-black">
+                                  También revelado hoy
+                                </p>
+                                <p className="mt-1 text-lg font-black">
+                                  🎤 {previous.alias}
+                                </p>
+                              </motion.div>
+                            )}
+                          </>
                         ) : (
-                          <p className="text-xl font-bold">Próximamente…</p>
+                          <div className="text-center">
+                            <p className="text-4xl font-black">???</p>
+                            <p className="mt-2 text-sm font-bold opacity-60">
+                              Próximamente…
+                            </p>
+                          </div>
                         );
                       })()}
                     </div>
 
                     {/* BOTTOM */}
-                    <div className="text-center">
+                    <div className="relative z-10 text-center">
 
-                      <p className="text-xs uppercase tracking-[0.25em] opacity-70 mb-2">
-                        🔥 Próximo drop de MCs
+                      {/* PROGRESS */}
+                      <div className="mb-4">
+                        <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] font-black opacity-60">
+                          <span>Lineup</span>
+                          <span>{Math.round((revealedCount / Math.max(mcs.length || 32, 1)) * 100)}%</span>
+                        </div>
+
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-black/15">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${Math.min(
+                                100,
+                                (revealedCount / Math.max(mcs.length || 32, 1)) * 100
+                              )}%`,
+                            }}
+                            transition={{ duration: 0.7, ease: "easeOut" }}
+                            className="h-full rounded-full bg-black/80"
+                          />
+                        </div>
+                      </div>
+
+                      <p className="text-xs uppercase tracking-[0.22em] opacity-65 font-black mb-2">
+                        Próximo drop en
                       </p>
 
                       {/* TIMER */}
-                      <div className="flex items-center justify-center gap-2">
-
+                      <div className="grid grid-cols-3 gap-2">
                         {[
                           { label: "HRS", value: nextReveal.h },
                           { label: "MIN", value: nextReveal.m },
@@ -844,34 +1219,28 @@ export default function Home() {
                             initial={{ opacity: 0, y: 6 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.25 }}
-                            className="bg-black/10 rounded-lg px-3 py-2 min-w-[62px]"
+                            className="bg-black/10 rounded-xl px-3 py-3"
                           >
-                            <div className="text-lg font-black leading-none">
+                            <div className="text-xl font-black leading-none">
                               {item.value.toString().padStart(2, "0")}
                             </div>
 
-                            <div className="text-[9px] uppercase tracking-widest opacity-60 mt-1">
+                            <div className="text-[9px] uppercase tracking-widest opacity-55 mt-1">
                               {item.label}
                             </div>
                           </motion.div>
                         ))}
-
                       </div>
 
-                      {/* INFO */}
-                      <div className="mt-3 space-y-1">
-                        <p className="text-[11px] opacity-70 tracking-wide">
-                          🎤 2 MCs revelados cada día
-                        </p>
-
-                        <p className="text-[10px] opacity-50">
-                          Todos los días • 7:00 PM
-                        </p>
+                      <div className="mt-4 flex items-center justify-center gap-2 rounded-full bg-black/10 px-4 py-2">
+                        <span className="text-[11px] font-black">
+                          2 MCs diarios • 7:00 PM
+                        </span>
+                        <span className="opacity-40">|</span>
+                        <span className="text-[11px] font-black opacity-70">
+                          toca para ver todos
+                        </span>
                       </div>
-
-                      <p className="text-[10px] mt-3 opacity-40">
-                        (toca para ver todos)
-                      </p>
 
                     </div>
                   </div>
@@ -924,7 +1293,7 @@ export default function Home() {
                     </div>
 
                     {/* GRID */}
-                    <div className="grid grid-cols-4 gap-2 text-sm">
+                    <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-4 gap-2 text-sm">
 
                       {Array.from({ length: 32 }).map((_, i) => {
                         const mc = mcs[i];
@@ -932,27 +1301,42 @@ export default function Home() {
                         return (
                           <motion.div
                             key={i}
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: i * 0.01 }}
+                            initial={{ opacity: 0, scale: 0.82, y: 12, filter: "blur(10px)" }}
+                            animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+                            transition={{ delay: i * 0.018, duration: 0.35 }}
                             className={`
-            rounded-md py-2 px-1 text-center border transition-all duration-200
-            ${mc?.visible
-                                ? "bg-yellow-400/10 border-yellow-400/20 text-yellow-300"
-                                : "bg-black/50 border-yellow-400/10 text-gray-500"
+                              relative overflow-hidden rounded-xl py-3 px-2 text-center border transition-all duration-300 min-h-[48px]
+                              ${mc?.visible
+                                ? "bg-yellow-400/15 border-yellow-400/35 text-yellow-200 shadow-[0_0_22px_rgba(250,204,21,0.10)]"
+                                : "bg-black/60 border-yellow-400/10 text-gray-500"
                               }
-          `}
+                            `}
                           >
+                            {mc?.visible && mc.justRevealed && (
+                              <motion.span
+                                initial={{ x: "-120%" }}
+                                animate={{ x: "130%" }}
+                                transition={{ duration: 1.1, ease: "easeOut" }}
+                                className="absolute inset-y-0 w-1/2 bg-white/25 blur-xl"
+                              />
+                            )}
+
                             {mc ? (
                               mc.visible ? (
-                                <span className="font-medium">
+                                <motion.span
+                                  key={mc.alias}
+                                  initial={{ letterSpacing: "0.18em", opacity: 0 }}
+                                  animate={{ letterSpacing: "0em", opacity: 1 }}
+                                  transition={{ duration: 0.45 }}
+                                  className="relative z-10 font-black text-xs sm:text-sm"
+                                >
                                   {mc.alias}
-                                </span>
+                                </motion.span>
                               ) : (
-                                <span>???</span>
+                                <span className="relative z-10 blur-[1px]">???</span>
                               )
                             ) : (
-                              <span className="text-gray-700">—</span>
+                              <span className="relative z-10 text-gray-700">—</span>
                             )}
                           </motion.div>
                         );
@@ -969,7 +1353,7 @@ export default function Home() {
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{
-                              width: `${mcs.length > 0 ? (mcs.filter(m => m.visible).length / mcs.length) * 100 : 0}%`
+                              width: `${mcs.length > 0 ? (revealedCount / mcs.length) * 100 : 0}%`
                             }}
                             transition={{ duration: 0.6 }}
                             className="h-full bg-yellow-400"
@@ -977,7 +1361,7 @@ export default function Home() {
                         </div>
 
                         <p className="text-xs text-gray-500 mt-3">
-                          🔓 {mcs.filter(m => m.visible).length} revelados de {mcs.length}
+                          🔓 {revealedCount} revelados de {mcs.length}
                         </p>
 
                       </div>

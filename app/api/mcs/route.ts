@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 const MAX_CUPOS = 32;
 const MC_PER_DROP = 2;
 
+// Primer reveal: 28 de abril de 2026 a las 7:00 PM en República Dominicana.
+// RD es UTC-4, por eso 7:00 PM RD = 23:00 UTC.
 const FIRST_REVEAL_AT_UTC = Date.UTC(2026, 3, 28, 23, 0, 0);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -21,10 +23,10 @@ function getNextRevealAt(now = Date.now()) {
 }
 
 function getHypeCount(total: number, revealed: number, now = Date.now()) {
+  // Hype visible sin guardar IPs ni usuarios: base real + variación suave.
   const minutes = Math.floor(now / 60000);
   const wave = Math.abs(Math.sin(minutes / 11)) * 140;
   const pulse = Math.abs(Math.cos(minutes / 5)) * 45;
-
   return Math.round(420 + total * 9 + revealed * 16 + wave + pulse);
 }
 
@@ -39,6 +41,7 @@ export async function GET() {
     const now = Date.now();
 
     const res = await fetch(process.env.SHEETS_GET_URL, {
+      // Caching inteligente: no golpea Sheets en cada request, pero se mantiene fresco.
       next: { revalidate: 60 },
     });
 
@@ -58,8 +61,7 @@ export async function GET() {
       ...mc,
       visible: index < visibleCount,
       justRevealed:
-        index >= Math.max(0, visibleCount - MC_PER_DROP) &&
-        index < visibleCount,
+        index >= Math.max(0, visibleCount - MC_PER_DROP) && index < visibleCount,
     }));
 
     return NextResponse.json(
