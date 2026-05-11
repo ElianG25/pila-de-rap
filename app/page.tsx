@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -61,46 +61,61 @@ export default function Home() {
     s: 0,
   });
 
-  // 🎤 Fetch DATA (MEJORADO)
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch("/api/mcs", {
-          cache: "no-store",
-        });
+  const getNextRevealDate = useCallback(() => {
+    const now = new Date();
+    const next = new Date(now);
 
-        if (!res.ok) throw new Error("Error fetching data");
+    // 7:00 PM República Dominicana = 23:00 UTC.
+    // Usar UTC evita que Vercel/servidor adelante o atrase la revelación.
+    next.setUTCHours(23, 0, 0, 0);
 
-        const data = await res.json();
+    if (now.getTime() >= next.getTime()) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
 
-        console.log("DATA RAW:", data);
-
-        // ✅ MCs
-        setMcs(Array.isArray(data.data) ? data.data : []);
-
-        // ✅ Slots robusto
-        const rawSlots = data.restantes;
-
-        let parsedSlots: number | null = null;
-
-        if (typeof rawSlots === "number") {
-          parsedSlots = rawSlots;
-        } else if (typeof rawSlots === "string") {
-          const n = Number(rawSlots);
-          parsedSlots = isNaN(n) ? null : n;
-        }
-
-        setSlots(parsedSlots);
-
-      } catch (err) {
-        console.error("Error cargando datos:", err);
-        setMcs([]);
-        setSlots(null);
-      }
-    };
-
-    fetchData();
+    return next;
   }, []);
+
+  // 🎤 Fetch DATA
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch("/api/mcs", {
+        cache: "no-store",
+      });
+
+      if (!res.ok) throw new Error("Error fetching data");
+
+      const data = await res.json();
+
+      // ✅ MCs
+      setMcs(Array.isArray(data.data) ? data.data : []);
+
+      // ✅ Slots robusto
+      const rawSlots = data.restantes;
+      let parsedSlots: number | null = null;
+
+      if (typeof rawSlots === "number") {
+        parsedSlots = rawSlots;
+      } else if (typeof rawSlots === "string") {
+        const n = Number(rawSlots);
+        parsedSlots = Number.isNaN(n) ? null : n;
+      }
+
+      setSlots(parsedSlots);
+    } catch (err) {
+      console.error("Error cargando datos:", err);
+      setMcs([]);
+      setSlots(null);
+    }
+  }, []);
+
+  // 🔁 Carga inicial + refresco periódico para que se revelen sin recargar la página
+  useEffect(() => {
+    fetchData();
+
+    const interval = setInterval(fetchData, 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   // 🔁 Auto flip (SOLO cuando estás en la vista de MCs)
   useEffect(() => {
@@ -115,30 +130,26 @@ export default function Home() {
 
   // ⏳ Próxima revelación
   useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-
-      // ⏰ Próximo reveal → 7:00 PM
-      const nextRevealDate = new Date(now);
-
-      nextRevealDate.setHours(19, 0, 0, 0); // 19 = 7PM
-
-      // 🔥 Si ya pasaron las 7PM de hoy → usar mañana
-      if (now.getTime() >= nextRevealDate.getTime()) {
-        nextRevealDate.setDate(nextRevealDate.getDate() + 1);
-      }
-
-      const diff = nextRevealDate.getTime() - now.getTime();
+    const updateNextReveal = () => {
+      const diff = Math.max(0, getNextRevealDate().getTime() - Date.now());
 
       setNextReveal({
         h: Math.floor((diff / (1000 * 60 * 60)) % 24),
         m: Math.floor((diff / (1000 * 60)) % 60),
         s: Math.floor((diff / 1000) % 60),
       });
-    }, 1000);
+
+      // Justo al llegar a las 7:00 PM RD, refresca los MCs revelados.
+      if (diff <= 1000) {
+        fetchData();
+      }
+    };
+
+    updateNextReveal();
+    const interval = setInterval(updateNextReveal, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData, getNextRevealDate]);
 
   // ⏳ Loader
   useEffect(() => {
@@ -148,7 +159,7 @@ export default function Home() {
 
   // ⏳ Countdown evento
   useEffect(() => {
-    const targetDate = new Date("2026-05-30T20:00:00");
+    const targetDate = new Date("2026-05-31T00:00:00.000Z"); // 30 mayo 2026, 8:00 PM RD
 
     const interval = setInterval(() => {
       const now = new Date();
@@ -958,7 +969,7 @@ export default function Home() {
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{
-                              width: `${(mcs.filter(m => m.visible).length / mcs.length) * 100}%`
+                              width: `${mcs.length > 0 ? (mcs.filter(m => m.visible).length / mcs.length) * 100 : 0}%`
                             }}
                             transition={{ duration: 0.6 }}
                             className="h-full bg-yellow-400"

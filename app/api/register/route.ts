@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 
+function escapeHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // ✅ Validación básica (rápida, UX)
     if (!body.nombre || !body.alias || !body.telefono) {
       return NextResponse.json(
         { error: "Faltan campos obligatorios" },
@@ -20,8 +28,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🚀 ENVIAR A APPS SCRIPT
-    const res = await fetch(process.env.SHEETS_WEBHOOK!, {
+    if (!process.env.SHEETS_WEBHOOK) {
+      throw new Error("Missing SHEETS_WEBHOOK");
+    }
+
+    const res = await fetch(process.env.SHEETS_WEBHOOK, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -29,25 +40,19 @@ export async function POST(req: Request) {
       body: JSON.stringify(body),
     });
 
-    // ⚠️ Apps Script responde mejor como text()
     const raw = await res.text();
-
-    console.log("APPS SCRIPT RAW:", raw);
-
     let data: any = {};
 
     try {
       data = JSON.parse(raw);
     } catch (err) {
-      console.error("JSON parse error:", err);
-
+      console.error("JSON parse error:", err, raw);
       return NextResponse.json(
         { error: "Respuesta inválida del backend Sheets" },
         { status: 500 }
       );
     }
 
-    // ❌ VALIDACIONES DEL BACKEND
     if (!data.ok) {
       return NextResponse.json(
         {
@@ -58,7 +63,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // 📩 Mensaje WhatsApp
     const mensaje = `🔥 Gracias por inscribirte en Pila de Ra', *${body.alias}*
 
 🎤 Nos vemos en la plaza
@@ -68,7 +72,7 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
 
 💰 *Inscripción:* $200
 🕒 *Hora:* 3:00 PM
-📆 *Fecha:* Sabado, 30 de mayo
+📆 *Fecha:* Sábado, 30 de mayo
 
 🏆 *PREMIOS*
 🥇 Medalla + efectivo
@@ -79,38 +83,37 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
     const encodedMessage = encodeURIComponent(mensaje);
     const whatsappLink = `https://api.whatsapp.com/send?phone=1${body.telefono}&text=${encodedMessage}`;
 
-    // 🤖 Telegram
-    await fetch(
-      `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: process.env.TELEGRAM_CHAT_ID,
-          parse_mode: "HTML",
-          text: `
-🔥 <b>NUEVA INSCRIPCION</b>
+    if (process.env.TELEGRAM_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+      await fetch(
+        `https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            chat_id: process.env.TELEGRAM_CHAT_ID,
+            parse_mode: "HTML",
+            text: `
+🔥 <b>NUEVA INSCRIPCIÓN</b>
 
-👤 <b>Nombre:</b> ${body.nombre}
-🎤 <b>Alias:</b> ${body.alias}
-📱 <b>Teléfono:</b> ${body.telefono}
-📸 <b>Instagram:</b> ${body.instagram || "No IG ❌"}
-📆 <b>Evento:</b> ${body.fecha || "FECHA 1 | 30 de mayo"}
+👤 <b>Nombre:</b> ${escapeHtml(body.nombre)}
+🎤 <b>Alias:</b> ${escapeHtml(body.alias)}
+📱 <b>Teléfono:</b> ${escapeHtml(body.telefono)}
+📸 <b>Instagram:</b> ${escapeHtml(body.instagram || "No IG ❌")}
+📆 <b>Evento:</b> ${escapeHtml(body.fecha || "FECHA 1 | 30 de mayo")}
 
-👉 <a href="${whatsappLink}">Escribir por WhatsApp</a>
-          `,
-        }),
-      }
-    );
+👉 <a href="${escapeHtml(whatsappLink)}">Escribir por WhatsApp</a>
+            `,
+          }),
+        }
+      );
+    }
 
-    // ✅ Respuesta final (ya validada por Sheets)
     return NextResponse.json({
       ok: true,
       restantes: data.restantes,
     });
-
   } catch (error) {
     console.error(error);
 
