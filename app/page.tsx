@@ -1246,51 +1246,105 @@ export default function Home() {
                   </div>
 
                   {/* ⚫ BACK */}
-                  <div className="bg-black border border-yellow-400/20 rounded-2xl p-6 [transform:rotateY(180deg)] [backface-visibility:hidden]">
+<div className="relative overflow-hidden bg-black border border-yellow-400/20 rounded-2xl p-5 sm:p-6 [transform:rotateY(180deg)] [backface-visibility:hidden]">
 
-                    {/* HEADER */}
-                    <div className="text-center mb-5">
+  {/* BACKGROUND FX */}
+  <div className="absolute inset-0 pointer-events-none">
+    <div className="absolute -top-24 -right-20 w-56 h-56 rounded-full bg-yellow-400/10 blur-3xl" />
+    <div className="absolute -bottom-28 -left-20 w-64 h-64 rounded-full bg-orange-400/10 blur-3xl" />
+    <div className="absolute inset-0 opacity-[0.07] bg-[radial-gradient(circle_at_1px_1px,#facc15_1px,transparent_0)] [background-size:18px_18px]" />
+  </div>
 
-                      <h3 className="text-yellow-400 font-black text-xl tracking-tight">
-                        🎤 Lista de MCs
-                      </h3>
+  {/* HEADER */}
+  <div className="relative z-10 text-center mb-5">
 
-                      <p className="text-[11px] text-gray-400 mt-2 uppercase tracking-[0.2em]">
-                        Próximo drop en
-                      </p>
+    <div className="flex items-start justify-between gap-3 mb-5">
+      <div className="text-left">
+        <p className="text-[10px] uppercase tracking-[0.28em] text-yellow-100/50 font-black">
+          Lineup oficial
+        </p>
 
-                      {/* ⏳ TIMER */}
-                      <div className="flex items-center justify-center gap-2 mt-3">
+        <h3 className="mt-2 text-yellow-400 font-black text-2xl tracking-tight leading-none">
+          🎤 Lista de MCs
+        </h3>
+      </div>
 
-                        {[
-                          { label: "HRS", value: nextReveal.h },
-                          { label: "MIN", value: nextReveal.m },
-                          { label: "SEG", value: nextReveal.s },
-                        ].map((item) => (
-                          <motion.div
-                            key={item.label}
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.25 }}
-                            className="bg-yellow-400/10 border border-yellow-400/10 rounded-lg px-3 py-2 min-w-[62px]"
-                          >
-                            <div className="text-lg font-black text-yellow-300 leading-none">
-                              {item.value.toString().padStart(2, "0")}
-                            </div>
+      <div className="text-right">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-bold">
+          Revelados
+        </p>
 
-                            <div className="text-[9px] uppercase tracking-widest text-gray-500 mt-1">
-                              {item.label}
-                            </div>
-                          </motion.div>
-                        ))}
+        <p className="text-2xl font-black leading-none text-yellow-300">
+          {revealedCount}
+          <span className="text-sm text-gray-600">/{mcs.length || 32}</span>
+        </p>
+      </div>
+    </div>
 
-                      </div>
+    {/* PROGRESS */}
+    <div className="mb-5">
+      <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] font-black text-gray-500">
+        <span>Progreso del reveal</span>
+        <span>
+          {Math.round((revealedCount / Math.max(mcs.length || 32, 1)) * 100)}%
+        </span>
+      </div>
 
-                      <p className="text-[10px] text-gray-500 mt-3">
-                        🔥 2 MCs diarios • 7:00 PM
-                      </p>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-yellow-400/10 border border-yellow-400/10">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{
+            width: `${Math.min(
+              100,
+              (revealedCount / Math.max(mcs.length || 32, 1)) * 100
+            )}%`,
+          }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="h-full rounded-full bg-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.55)]"
+        />
+      </div>
+    </div>
 
-                    </div>
+    <p className="text-[11px] text-gray-400 uppercase tracking-[0.22em] font-black">
+      Próximo drop en
+    </p>
+
+    {/* ⏳ TIMER */}
+    <div className="grid grid-cols-3 gap-2 mt-3">
+      {[
+        { label: "HRS", value: nextReveal.h },
+        { label: "MIN", value: nextReveal.m },
+        { label: "SEG", value: nextReveal.s },
+      ].map((item) => (
+        <motion.div
+          key={item.label}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="bg-yellow-400/10 border border-yellow-400/10 rounded-xl px-3 py-3"
+        >
+          <div className="text-xl font-black text-yellow-300 leading-none">
+            {item.value.toString().padStart(2, "0")}
+          </div>
+
+          <div className="text-[9px] uppercase tracking-widest text-gray-500 mt-1">
+            {item.label}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+
+    <div className="mt-4 flex items-center justify-center gap-2 rounded-full bg-yellow-400/10 border border-yellow-400/10 px-4 py-2">
+      <span className="text-[11px] font-black text-yellow-300">
+        2 MCs diarios • 7:00 PM
+      </span>
+      <span className="text-gray-600">|</span>
+      <span className="text-[11px] font-black text-gray-500">
+        toca para volver
+      </span>
+    </div>
+
+  </div>
 
                     {/* GRID */}
                     <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-4 gap-2 text-sm">
