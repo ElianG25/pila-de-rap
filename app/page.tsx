@@ -1217,16 +1217,16 @@ export default function Home() {
 
                   <div className="relative z-10 mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
                     <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">Fecha</p>
-                      <p className="mt-1 text-sm font-black text-yellow-200">30 mayo 2026</p>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">FECHA</p>
+                      <p className="mt-1 text-sm font-black text-yellow-200">30 de mayo, 2026</p>
                     </div>
                     <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">Hora</p>
-                      <p className="mt-1 text-sm font-black text-yellow-200">3:00 PM RD</p>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">HORA</p>
+                      <p className="mt-1 text-sm font-black text-yellow-200">3:00 PM</p>
                     </div>
                     <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">Estado</p>
-                      <p className="mt-1 text-sm font-black text-yellow-200">La plaza sigue viva</p>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">LUGAR</p>
+                      <p className="mt-1 text-sm font-black text-yellow-200">Mirador Sur</p>
                     </div>
                   </div>
                 </motion.div>
