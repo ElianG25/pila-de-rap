@@ -234,7 +234,7 @@ export default function Home() {
 
   // ⏳ Countdown evento
   useEffect(() => {
-    const targetDate = new Date("2026-05-31T00:00:00.000Z"); // 30 mayo 2026, 8:00 PM RD
+    const targetDate = new Date("2026-05-30T19:00:00.000Z"); // 30 mayo 2026, 3:00 PM RD
 
     const interval = setInterval(() => {
       const now = new Date();
@@ -270,63 +270,52 @@ export default function Home() {
   const previousVisibleMc = visibleMcs[visibleMcs.length - 2];
 
   const shareLineup = useCallback(async () => {
-    const origin =
+    const baseUrl =
       typeof window !== "undefined"
         ? window.location.origin
-        : "https://piladerap.vercel.app";
+        : "https://pila-de-rap.vercel.app";
 
-    const imageUrl = `${origin}/api/share?t=${Date.now()}`;
+    const pageUrl = baseUrl;
+    const imageUrl = `${baseUrl}/api/share`;
+    const text = `🔥 Pila de Rap: lineup completo con ${revealedCount}/32 MCs. Sábado 30 de mayo, 3:00 PM RD.`;
 
     try {
-      const imageResponse = await fetch(imageUrl, {
-        method: "GET",
-        cache: "no-store",
-      });
-
-      if (!imageResponse.ok) {
-        throw new Error(`Image request failed: ${imageResponse.status}`);
-      }
-
+      const imageResponse = await fetch(imageUrl, { cache: "no-store" });
       const blob = await imageResponse.blob();
-
-      if (!blob.type.includes("image")) {
-        throw new Error("Response is not an image");
-      }
-
       const file = new File([blob], "pila-de-rap-lineup.png", {
-        type: blob.type || "image/png",
+        type: "image/png",
       });
 
-      if (
-        navigator.canShare &&
-        navigator.canShare({ files: [file] }) &&
-        navigator.share
-      ) {
+      if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           title: "Pila de Rap - Lineup completo",
-          text: "Los 32 MCs ya fueron revelados.",
+          text,
           files: [file],
         });
-
         return;
       }
 
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-
-      link.href = objectUrl;
-      link.download = "pila-de-rap-lineup.png";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      console.error("Error sharing lineup:", error);
+      if (navigator.share) {
+        await navigator.share({
+          title: "Pila de Rap - Lineup completo",
+          text,
+          url: imageUrl,
+        });
+        return;
+      }
 
       window.open(imageUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("No se pudo compartir:", error);
+
+      try {
+        await navigator.clipboard.writeText(`${text} ${pageUrl}`);
+        alert("Link copiado para compartir 🔥");
+      } catch {
+        window.open(imageUrl, "_blank", "noopener,noreferrer");
+      }
     }
-  }, []);
+  }, [revealedCount]);
 
   // 🔥 Skeleton loading elegante
   if (loading) {
@@ -571,7 +560,7 @@ export default function Home() {
 
           {/* TOGGLE PAGS */}
           <div className="flex justify-center mb-10">
-            <div className="relative flex bg-black/60 border border-yellow-400/20 rounded-xl p-1 w-full max-w-md">
+            <div className="relative flex bg-black/60 border border-yellow-400/20 rounded-xl p-1 w-full max-w-sm">
 
               {/* 🔥 PILL ANIMADO */}
               <motion.div
@@ -603,7 +592,7 @@ export default function Home() {
                 <button
                   key={item.key}
                   onClick={() => setView(item.key)}
-                  className={`relative z-10 flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200
+                  className={`relative z-10 flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold transition-colors duration-200
         ${view === item.key
                       ? "text-black"
                       : "text-gray-400 hover:text-yellow-300"
@@ -936,487 +925,165 @@ export default function Home() {
           {view === "mcs" && (
             <motion.div
               key="mcs"
-              initial={{ opacity: 0, y: 30, scale: 0.96 }}
+              initial={{ opacity: 0, y: 24, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.96 }}
-              transition={{
-                duration: 0.4,
-                ease: [0.22, 1, 0.36, 1],
-              }}
+              exit={{ opacity: 0, y: -18, scale: 0.98 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="w-full max-w-xl mx-auto"
             >
-              <div className="mb-5 grid grid-cols-2 gap-3 px-1">
-
-                {/* 🔥 HYPE LIVE */}
-                <motion.div
-                  initial={{ opacity: 0, y: 12, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{
-                    duration: 0.45,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
-                  whileHover={{
-                    y: -3,
-                    scale: 1.02,
-                  }}
-                  className="
-      relative overflow-hidden
-      rounded-2xl
-      border border-yellow-400/20
-      bg-gradient-to-br from-yellow-400/15 via-yellow-300/10 to-orange-400/15
-      p-4
-      text-center
-      shadow-[0_0_35px_rgba(250,204,21,0.10)]
-      backdrop-blur-xl
-    "
-                >
-
-                  {/* Glow */}
-                  <div className="absolute inset-0 bg-yellow-300/10 blur-3xl pointer-events-none" />
-
-                  {/* Live Pulse */}
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.15, 1],
-                      opacity: [0.5, 1, 0.5],
-                    }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 1.8,
-                      ease: "easeInOut",
-                    }}
-                    className="
-        absolute top-3 right-3
-        w-2.5 h-2.5
-        rounded-full
-        bg-green-400
-        shadow-[0_0_14px_rgba(74,222,128,0.9)]
-      "
-                  />
-
-                  {/* Label */}
-                  <p className="
-      text-[10px]
-      uppercase
-      tracking-[0.35em]
-      text-yellow-100/70
-      font-bold
-    ">
-                    🔥 Hype en vivo
+              {/* Estado compacto */}
+              <div className="mb-4 grid grid-cols-2 gap-2">
+                <div className="rounded-2xl border border-yellow-400/15 bg-black/55 px-3 py-3 text-center backdrop-blur-xl">
+                  <p className="text-[9px] uppercase tracking-[0.22em] text-gray-500 font-black">
+                    {isRosterComplete ? "Evento en" : "Próximo reveal"}
                   </p>
 
-                  {/* Number */}
-                  <motion.p
-                    key={hypeCount}
-                    initial={{
-                      opacity: 0,
-                      scale: 0.82,
-                      filter: "blur(10px)",
-                    }}
-                    animate={{
-                      opacity: 1,
-                      scale: 1,
-                      filter: "blur(0px)",
-                    }}
-                    transition={{
-                      duration: 0.45,
-                      ease: [0.22, 1, 0.36, 1],
-                    }}
-                    className="
-        mt-2
-        text-3xl
-        md:text-4xl
-        font-black
-        tracking-tight
-        text-yellow-300
-        drop-shadow-[0_0_18px_rgba(250,204,21,0.45)]
-      "
-                  >
-                    {hypeCount.toLocaleString("es-DO")}
-                  </motion.p>
+                  {isRosterComplete ? (
+                    <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
+                      {timeLeft.d}d {timeLeft.h}h
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
+                      {nextReveal.h.toString().padStart(2, "0")}:
+                      {nextReveal.m.toString().padStart(2, "0")}:
+                      {nextReveal.s.toString().padStart(2, "0")}
+                    </p>
+                  )}
+                </div>
 
-                  {/* Subtitle */}
-                  <p className="
-      mt-1
-      text-[11px]
-      text-yellow-100/55
-      tracking-wide
-    ">
-                    personas esperando el reveal ⚡
-                  </p>
-
-                </motion.div>
-
-                {/* 🚀 SHARE BUTTON */}
                 <motion.button
                   type="button"
-                  whileHover={{
-                    y: -3,
-                    scale: 1.02,
-                  }}
-                  whileTap={{
-                    scale: 0.96,
-                  }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={shareLineup}
-                  className="
-      relative overflow-hidden
-      rounded-2xl
-      border border-yellow-400/30
-      bg-yellow-400
-      text-black
-      p-4
-      text-center
-      font-black
-      shadow-[0_0_35px_rgba(250,204,21,0.20)]
-      transition-all
-      duration-300
-    "
+                  className="rounded-2xl border border-yellow-400/30 bg-yellow-400 px-3 py-3 text-center text-black shadow-[0_0_28px_rgba(250,204,21,0.16)]"
                 >
-
-                  {/* Shine */}
-                  <motion.div
-                    animate={{
-                      x: ["-120%", "220%"],
-                    }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 2.5,
-                      ease: "easeInOut",
-                    }}
-                    className="
-        absolute inset-y-0
-        w-1/2
-        bg-white/25
-        blur-xl
-        rotate-12
-      "
-                  />
-
-                  {/* Top */}
-                  <span className="
-      relative z-10
-      block
-      text-[10px]
-      uppercase
-      tracking-[0.3em]
-      opacity-70
-    ">
+                  <span className="block text-[9px] uppercase tracking-[0.22em] font-black opacity-70">
                     Compartir
                   </span>
-
-                  {/* Main */}
-                  <span className="
-      relative z-10
-      mt-2
-      block
-      text-lg
-      md:text-xl
-      leading-none
-    ">
-                    🚀 Lineup
+                  <span className="mt-1 block text-sm font-black leading-none">
+                    Lineup 9:16
                   </span>
-
-                  {/* Bottom */}
-                  <span className="
-      relative z-10
-      mt-2
-      block
-      text-[11px]
-      font-semibold
-      opacity-70
-    ">
-                    súbelo a stories 🔥
-                  </span>
-
                 </motion.button>
-
               </div>
 
-              <div className="mb-4 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.22em] text-gray-400">
+              <div className="mb-4 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gray-500">
                 <span className={`h-2 w-2 rounded-full ${isLive ? "bg-green-400" : "bg-yellow-400"}`} />
-                {isLive ? "Tiempo real activo" : "Sincronizando cada minuto"}
+                {isRosterComplete
+                  ? "Roster completo • camino al evento"
+                  : isLive
+                    ? "Revelaciones en vivo"
+                    : "Sincronizando lineup"}
               </div>
 
-              {/* 🔥 LINEUP CARD MCs */}
-              {isRosterComplete ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="w-full max-w-xl mx-auto overflow-hidden bg-black border border-yellow-400/20 rounded-2xl p-5 sm:p-6 shadow-[0_0_45px_rgba(250,204,21,0.10)]"
-                >
-                  <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute -top-24 -right-20 w-56 h-56 rounded-full bg-yellow-400/10 blur-3xl" />
-                    <div className="absolute -bottom-28 -left-20 w-64 h-64 rounded-full bg-orange-400/10 blur-3xl" />
-                  </div>
+              {/* Card principal MCs */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.35 }}
+                className="relative overflow-hidden rounded-3xl border border-yellow-400/20 bg-black/75 p-5 sm:p-6 shadow-[0_0_45px_rgba(250,204,21,0.10)] backdrop-blur-xl"
+              >
+                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.10),transparent_38rem)]" />
+                <div className="absolute inset-0 pointer-events-none opacity-[0.06] bg-[radial-gradient(circle_at_1px_1px,#facc15_1px,transparent_0)] [background-size:18px_18px]" />
 
-                  <div className="relative z-10 text-center mb-5">
-                    <div className="flex items-start justify-between gap-3 mb-5">
-                      <div className="text-left">
-                        <p className="text-[10px] uppercase tracking-[0.28em] text-yellow-100/50 font-black">
-                          Lineup oficial
-                        </p>
-                        <h3 className="mt-2 text-yellow-400 font-black text-2xl tracking-tight leading-none">
-                          🎤 Roster completo
-                        </h3>
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-bold">
-                          Revelados
-                        </p>
-                        <p className="text-2xl font-black leading-none text-yellow-300">
-                          {revealedCount}
-                          <span className="text-sm text-gray-600">/{rosterTotal}</span>
-                        </p>
-                      </div>
+                <div className="relative z-10">
+                  <div className="mb-5 flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.28em] text-yellow-100/50 font-black">
+                        Lineup oficial
+                      </p>
+                      <h2 className="mt-2 text-2xl sm:text-3xl font-black text-yellow-400 leading-none">
+                        {isRosterComplete ? "🎤 Roster completo" : "🎤 MCs revelados"}
+                      </h2>
+                      <p className="mt-2 text-xs text-gray-400 leading-relaxed">
+                        {isRosterComplete
+                          ? "Ya no quedan drops pendientes. Ahora la vuelta es llegar al evento."
+                          : "Los nombres se van revelando hasta completar los 32 cupos."}
+                      </p>
                     </div>
 
-                    <div className="mb-5">
-                      <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] font-black text-gray-500">
-                        <span>Lineup completo</span>
-                        <span>{revealPercent}%</span>
-                      </div>
-
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-yellow-400/10 border border-yellow-400/10">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${revealPercent}%` }}
-                          transition={{ duration: 0.7, ease: "easeOut" }}
-                          className="h-full rounded-full bg-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.55)]"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-center rounded-full bg-yellow-400/10 border border-yellow-400/10 px-4 py-2">
-                      <span className="text-[11px] font-black text-yellow-300">
-                        32 MCs revelados • lineup completo
-                      </span>
+                    <div className="shrink-0 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-3 py-2 text-right">
+                      <p className="text-[9px] uppercase tracking-[0.18em] text-gray-500 font-black">
+                        MCs
+                      </p>
+                      <p className="text-xl font-black leading-none text-yellow-300">
+                        {revealedCount}
+                        <span className="text-xs text-gray-600">/{rosterTotal}</span>
+                      </p>
                     </div>
                   </div>
 
-                  <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                  {!isRosterComplete && lastVisibleMc && (
+                    <div className="mb-5 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-4 py-4 text-center">
+                      <p className="text-[10px] uppercase tracking-[0.24em] text-gray-500 font-black">
+                        Último MC revelado
+                      </p>
+                      <p className="mt-2 text-3xl font-black text-yellow-300 break-words">
+                        {lastVisibleMc.alias}
+                      </p>
+                      {previousVisibleMc && (
+                        <p className="mt-2 text-xs text-gray-400">
+                          También revelado: <span className="font-bold text-yellow-100">{previousVisibleMc.alias}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mb-5">
+                    <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] font-black text-gray-500">
+                      <span>{isRosterComplete ? "Completo" : "Progreso"}</span>
+                      <span>{revealPercent}%</span>
+                    </div>
+
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-yellow-400/10 border border-yellow-400/10">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${revealPercent}%` }}
+                        transition={{ duration: 0.7, ease: "easeOut" }}
+                        className="h-full rounded-full bg-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.55)]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
                     {Array.from({ length: TOTAL_MCS }).map((_, i) => {
                       const mc = mcs[i];
+                      const visible = Boolean(mc?.visible || isRosterComplete);
 
                       return (
                         <motion.div
                           key={mc?.alias || i}
-                          initial={{ opacity: 0, scale: 0.82, y: 12, filter: "blur(10px)" }}
-                          animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-                          transition={{ delay: i * 0.018, duration: 0.35 }}
-                          className="relative overflow-hidden rounded-xl py-3 px-2 text-center border min-h-[48px] bg-yellow-400/15 border-yellow-400/35 text-yellow-200 shadow-[0_0_22px_rgba(250,204,21,0.10)]"
+                          initial={{ opacity: 0, scale: 0.86, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          transition={{ delay: i * 0.012, duration: 0.28 }}
+                          className={`relative overflow-hidden rounded-xl border px-2 py-3 text-center min-h-[46px] flex items-center justify-center ${visible
+                            ? "bg-yellow-400/15 border-yellow-400/35 text-yellow-100"
+                            : "bg-black/50 border-yellow-400/10 text-gray-600"
+                          }`}
                         >
-                          <span className="relative z-10 font-black text-xs sm:text-sm break-words">
-                            {mc?.alias || "MC"}
+                          <span className={`relative z-10 font-black text-xs sm:text-sm break-words ${visible ? "" : "blur-[1px]"}`}>
+                            {visible ? mc?.alias || "MC" : "???"}
                           </span>
                         </motion.div>
                       );
                     })}
                   </div>
 
-                  <div className="relative z-10 mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
-                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">FECHA</p>
-                      <p className="mt-1 text-sm font-black text-yellow-200">30 de mayo, 2026</p>
+                  <div className="mt-5 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">FECHA</p>
+                      <p className="mt-1 text-xs font-black text-yellow-200">30 de mayo</p>
                     </div>
-                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">HORA</p>
-                      <p className="mt-1 text-sm font-black text-yellow-200">3:00 PM</p>
+                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">HORA</p>
+                      <p className="mt-1 text-xs font-black text-yellow-200">3:00 PM</p>
                     </div>
-                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-3 py-3">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500 font-black">LUGAR</p>
-                      <p className="mt-1 text-sm font-black text-yellow-200">Mirador Sur</p>
+                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">LUGAR</p>
+                      <p className="mt-1 text-xs font-black text-yellow-200">Mirador Sur</p>
                     </div>
                   </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="w-full max-w-xl mx-auto overflow-x-clip [perspective:1000px]"
-                >
-                  <motion.div
-                    animate={{ rotateY: flipped ? 180 : 0 }}
-                    transition={{ duration: 0.45, ease: "easeOut" }}
-                    className="relative w-full min-h-[560px] sm:min-h-[540px] [transform-style:preserve-3d] touch-pan-y"
-                  >
-                    <div
-                      className="absolute inset-0 overflow-hidden bg-yellow-400 text-black rounded-2xl p-5 sm:p-6 flex flex-col justify-between [backface-visibility:hidden] [-webkit-backface-visibility:hidden]"
-                      style={{
-                        transform: "rotateY(0deg)",
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                        pointerEvents: flipped ? "none" : "auto",
-                      }}
-                    >
-                      <div className="absolute inset-0 pointer-events-none">
-                        <div className="absolute -top-20 -right-20 w-52 h-52 rounded-full bg-white/20 blur-3xl" />
-                        <div className="absolute -bottom-24 -left-20 w-60 h-60 rounded-full bg-orange-500/20 blur-3xl" />
-                      </div>
-
-                      <div className="relative z-10 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] uppercase tracking-[0.28em] opacity-65 font-black">
-                            Último MC revelado
-                          </p>
-                          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-black/10 px-3 py-1">
-                            <span className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.9)]" />
-                            <span className="text-[10px] font-black uppercase tracking-[0.18em]">Live drop</span>
-                          </div>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="text-[10px] uppercase tracking-[0.18em] opacity-60 font-bold">Revelados</p>
-                          <p className="text-2xl font-black leading-none">
-                            {revealedCount}
-                            <span className="text-sm opacity-50">/{rosterTotal}</span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-6">
-                        {lastVisibleMc ? (
-                          <>
-                            <motion.div
-                              key={lastVisibleMc.alias}
-                              initial={{ opacity: 0, scale: 0.75, filter: "blur(14px)" }}
-                              animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                              className="text-center max-w-full"
-                            >
-                              <p className="text-[11px] uppercase tracking-[0.3em] opacity-55 font-black mb-2">
-                                Ahora en tarima
-                              </p>
-                              <h3 className="break-words text-4xl sm:text-6xl md:text-7xl font-black text-center leading-none drop-shadow-[0_0_22px_rgba(0,0,0,0.30)]">
-                                🎤 {lastVisibleMc.alias}
-                              </h3>
-                            </motion.div>
-
-                            {previousVisibleMc && (
-                              <motion.div
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.25 }}
-                                className="mt-5 rounded-2xl bg-black/10 px-4 py-3 text-center max-w-full"
-                              >
-                                <p className="text-[10px] uppercase tracking-[0.22em] opacity-55 font-black">También revelado</p>
-                                <p className="mt-1 text-lg font-black break-words">🎤 {previousVisibleMc.alias}</p>
-                              </motion.div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-center">
-                            <p className="text-4xl font-black">???</p>
-                            <p className="mt-2 text-sm font-bold opacity-60">Próximamente…</p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="relative z-10 text-center">
-                        <div className="mb-4">
-                          <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] font-black opacity-60">
-                            <span>Lineup</span>
-                            <span>{revealPercent}%</span>
-                          </div>
-                          <div className="h-2 w-full overflow-hidden rounded-full bg-black/15">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${revealPercent}%` }}
-                              transition={{ duration: 0.7, ease: "easeOut" }}
-                              className="h-full rounded-full bg-black/80"
-                            />
-                          </div>
-                        </div>
-
-                        <p className="text-xs uppercase tracking-[0.22em] opacity-65 font-black mb-2">Próximo drop en</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { label: "HRS", value: nextReveal.h },
-                            { label: "MIN", value: nextReveal.m },
-                            { label: "SEG", value: nextReveal.s },
-                          ].map((item) => (
-                            <div key={item.label} className="bg-black/10 rounded-xl px-3 py-3">
-                              <div className="text-xl font-black leading-none">{item.value.toString().padStart(2, "0")}</div>
-                              <div className="text-[9px] uppercase tracking-widest opacity-55 mt-1">{item.label}</div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <button
-                          type="button"
-                          aria-label="Ver lista completa de MCs"
-                          onClick={() => setFlipped(true)}
-                          className="mt-4 w-full rounded-full bg-black/10 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] active:scale-[0.98]"
-                        >
-                          Ver lista completa
-                        </button>
-                      </div>
-                    </div>
-
-                    <div
-                      className="absolute inset-0 overflow-hidden bg-black border border-yellow-400/20 rounded-2xl [backface-visibility:hidden] [-webkit-backface-visibility:hidden]"
-                      style={{
-                        transform: "rotateY(180deg)",
-                        backfaceVisibility: "hidden",
-                        WebkitBackfaceVisibility: "hidden",
-                        pointerEvents: flipped ? "auto" : "none",
-                      }}
-                    >
-                      <div className="h-full overflow-y-auto overflow-x-hidden overscroll-contain p-5 sm:p-6 touch-pan-y [-webkit-overflow-scrolling:touch] pb-24">
-                        <div className="relative z-10 text-center mb-5">
-                          <div className="flex items-start justify-between gap-3 mb-5">
-                            <div className="text-left">
-                              <p className="text-[10px] uppercase tracking-[0.28em] text-yellow-100/50 font-black">Lineup oficial</p>
-                              <h3 className="mt-2 text-yellow-400 font-black text-2xl tracking-tight leading-none">🎤 Lista de MCs</h3>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] uppercase tracking-[0.18em] text-gray-500 font-bold">Revelados</p>
-                              <p className="text-2xl font-black leading-none text-yellow-300">
-                                {revealedCount}
-                                <span className="text-sm text-gray-600">/{rosterTotal}</span>
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
-                          {Array.from({ length: TOTAL_MCS }).map((_, i) => {
-                            const mc = mcs[i];
-                            return (
-                              <motion.div
-                                key={mc?.alias || i}
-                                initial={{ opacity: 0, scale: 0.82, y: 12, filter: "blur(10px)" }}
-                                animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-                                transition={{ delay: i * 0.018, duration: 0.35 }}
-                                className={`relative overflow-hidden rounded-xl py-3 px-2 text-center border transition-all duration-300 min-h-[48px] ${mc?.visible ? "bg-yellow-400/15 border-yellow-400/35 text-yellow-200" : "bg-black/60 border-yellow-400/10 text-gray-500"}`}
-                              >
-                                {mc?.visible ? (
-                                  <span className="relative z-10 font-black text-xs sm:text-sm break-words">{mc.alias}</span>
-                                ) : (
-                                  <span className="relative z-10 blur-[1px]">???</span>
-                                )}
-                              </motion.div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="relative z-10 mt-5">
-                          <button
-                            type="button"
-                            aria-label="Volver al MC destacado"
-                            onClick={() => setFlipped(false)}
-                            className="w-full rounded-xl bg-yellow-400 text-black px-4 py-3 text-xs font-black uppercase tracking-[0.16em] active:scale-[0.98]"
-                          >
-                            Volver al destacado
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
+                </div>
+              </motion.div>
             </motion.div>
           )}
 
