@@ -101,6 +101,9 @@ export async function GET() {
         nextRevealHour: isRosterComplete ? null : "7:00 PM RD",
         hypeCount: getHypeCount(total, visibleCount, now),
         mcPerDrop: MC_PER_DROP,
+        config: json?.config ?? null,
+        ranking: json?.ranking ?? [],
+        battles: json?.battles ?? [],
       },
       {
         headers: {
@@ -127,6 +130,9 @@ export async function GET() {
         hypeCount: getHypeCount(0, 0, now),
         mcPerDrop: MC_PER_DROP,
         error: "No se pudieron cargar los MCs",
+        config: null,
+        ranking: [],
+        battles: [],
       },
       { status: 500 }
     );

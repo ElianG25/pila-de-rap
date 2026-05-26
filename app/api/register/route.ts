@@ -9,21 +9,39 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, "&#39;");
 }
 
+function normalizePhone(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
+function getErrorStatus(error: string) {
+  if (error === "INSCRIPCIONES_CERRADAS") return 403;
+  if (error === "CUPOS_AGOTADOS") return 409;
+  if (error === "YA_INSCRITO") return 409;
+  if (error === "TELEFONO_INVALIDO") return 400;
+  if (error === "CAMPOS_INCOMPLETOS") return 400;
+  return 400;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    if (!body.nombre || !body.alias || !body.telefono) {
+    const nombre = String(body.nombre ?? "").trim();
+    const alias = String(body.alias ?? "").trim();
+    const telefono = normalizePhone(body.telefono);
+    const instagram = String(body.instagram ?? "").trim();
+    const fecha = String(body.fecha ?? "FECHA 1 | 30 de mayo").trim();
+
+    if (!nombre || !alias || !telefono) {
       return NextResponse.json(
-        { error: "Faltan campos obligatorios" },
+        { error: "CAMPOS_INCOMPLETOS" },
         { status: 400 }
       );
     }
 
-    const phoneRegex = /^\d{10}$/;
-    if (!phoneRegex.test(body.telefono)) {
+    if (!/^\d{10}$/.test(telefono)) {
       return NextResponse.json(
-        { error: "Teléfono inválido (10 dígitos)" },
+        { error: "TELEFONO_INVALIDO" },
         { status: 400 }
       );
     }
@@ -32,38 +50,54 @@ export async function POST(req: Request) {
       throw new Error("Missing SHEETS_WEBHOOK");
     }
 
+    const payload = {
+      nombre,
+      alias,
+      telefono,
+      instagram,
+      fecha,
+    };
+
     const res = await fetch(process.env.SHEETS_WEBHOOK, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
+      cache: "no-store",
     });
 
     const raw = await res.text();
-    let data: any = {};
+    let data: {
+      ok?: boolean;
+      error?: string;
+      restantes?: number;
+    } = {};
 
     try {
       data = JSON.parse(raw);
     } catch (err) {
       console.error("JSON parse error:", err, raw);
+
       return NextResponse.json(
-        { error: "Respuesta inválida del backend Sheets" },
+        { error: "RESPUESTA_INVALIDA_SHEETS" },
         { status: 500 }
       );
     }
 
     if (!data.ok) {
+      const error = data.error || "ERROR_SHEETS";
+
       return NextResponse.json(
         {
-          error: data.error || "Error desconocido",
+          error,
           restantes: data.restantes ?? null,
         },
-        { status: 400 }
+        { status: getErrorStatus(error) }
       );
     }
 
-    const mensaje = `🔥 Gracias por inscribirte en Pila de Ra', *${body.alias}*
+    const mensaje = `🔥 Gracias por inscribirte en Pila de Ra', *${alias}*
 
 🎤 Nos vemos en la plaza
 
@@ -72,7 +106,7 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
 
 💰 *Inscripción:* $200
 🕒 *Hora:* 3:00 PM
-📆 *Fecha:* Sábado, 30 de mayo
+📆 *Fecha:* ${fecha}
 
 🏆 *PREMIOS*
 🥇 Medalla + efectivo
@@ -81,7 +115,7 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
 ⚠️ Llega temprano y *confírmame tu asistencia*.`;
 
     const encodedMessage = encodeURIComponent(mensaje);
-    const whatsappLink = `https://api.whatsapp.com/send?phone=1${body.telefono}&text=${encodedMessage}`;
+    const whatsappLink = `https://api.whatsapp.com/send?phone=1${telefono}&text=${encodedMessage}`;
 
     if (process.env.TELEGRAM_TOKEN && process.env.TELEGRAM_CHAT_ID) {
       await fetch(
@@ -97,15 +131,16 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
             text: `
 🔥 <b>NUEVA INSCRIPCIÓN</b>
 
-👤 <b>Nombre:</b> ${escapeHtml(body.nombre)}
-🎤 <b>Alias:</b> ${escapeHtml(body.alias)}
-📱 <b>Teléfono:</b> ${escapeHtml(body.telefono)}
-📸 <b>Instagram:</b> ${escapeHtml(body.instagram || "No IG ❌")}
-📆 <b>Evento:</b> ${escapeHtml(body.fecha || "FECHA 1 | 30 de mayo")}
+👤 <b>Nombre:</b> ${escapeHtml(nombre)}
+🎤 <b>Alias:</b> ${escapeHtml(alias)}
+📱 <b>Teléfono:</b> ${escapeHtml(telefono)}
+📸 <b>Instagram:</b> ${escapeHtml(instagram || "No IG ❌")}
+📆 <b>Evento:</b> ${escapeHtml(fecha)}
 
 👉 <a href="${escapeHtml(whatsappLink)}">Escribir por WhatsApp</a>
             `,
           }),
+          cache: "no-store",
         }
       );
     }
@@ -118,7 +153,7 @@ https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8
     console.error(error);
 
     return NextResponse.json(
-      { error: "Error interno" },
+      { error: "ERROR_INTERNO" },
       { status: 500 }
     );
   }

@@ -2,13 +2,52 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 
 const TOTAL_MCS = 32;
+
+type EventPhase = "pre_event" | "live_event" | "post_event";
+
+type EventConfig = {
+  registrationOpen: boolean;
+  currentRound: string;
+  youtubeLiveUrl: string;
+  eventDate: string;
+  eventLabel: string;
+  champion: string;
+  runnerUp: string;
+  eventSummary: string;
+  nextEventLabel: string;
+  nextEventDate: string;
+};
+
+type RankingMC = {
+  alias: string;
+  nombre: string;
+  puntos: number;
+  victorias: number;
+  derrotas: number;
+  replicas: number;
+  bonus: number;
+  estado: "activo" | "clasificado" | "eliminado" | "campeon" | string;
+};
+
+type Battle = {
+  fecha: string;
+  ronda: string;
+  mc1: string;
+  mc2: string;
+  ganador: string;
+  youtubeUrl: string;
+  estado: string;
+};
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
 
-  const [view, setView] = useState<"evento" | "mcs" | "ranking">("evento");
+  const [view, setView] = useState<
+    "evento" | "mcs" | "ranking" | "batallas"
+  >("evento");
 
   const [timeLeft, setTimeLeft] = useState({
     d: 0,
@@ -30,9 +69,6 @@ export default function Home() {
 
   const [slots, setSlots] = useState<number | null>(null);
 
-  // ✅ más seguro
-  const isFull = slots !== null && slots <= 0;
-
   // 🔥 MCs
   const [mcs, setMcs] = useState<
     { alias: string; visible: boolean; justRevealed?: boolean }[]
@@ -40,15 +76,131 @@ export default function Home() {
 
   const [serverOffset, setServerOffset] = useState(0);
   const [nextRevealAt, setNextRevealAt] = useState<number | null>(null);
-  const [hypeCount, setHypeCount] = useState(0);
-  const [isLive, setIsLive] = useState(false);
+  const [sseConnected, setSseConnected] = useState(false);
+
+  const [eventPhase, setEventPhase] =
+    useState<EventPhase>("pre_event");
+
+  const [eventConfig, setEventConfig] = useState<EventConfig>({
+    registrationOpen: true,
+    currentRound: "Inscripciones",
+    youtubeLiveUrl: "",
+    eventDate: "2026-05-30T15:00:00-04:00",
+    eventLabel: "FECHA 1 | 30 de mayo",
+    champion: "",
+    runnerUp: "",
+    eventSummary: "",
+    nextEventLabel: "",
+    nextEventDate: "",
+  });
+
+  // ✅ Derivados
+  const isFull = slots !== null && slots <= 0;
+  const isPreEvent = eventPhase === "pre_event";
+  const isLiveEvent = eventPhase === "live_event";
+  const isPostEvent = eventPhase === "post_event";
+
+  const [ranking, setRanking] = useState<RankingMC[]>([]);
+
+  const [battles, setBattles] = useState<Battle[]>([]);
+  const [battleFilter, setBattleFilter] = useState<
+    "todas" | "publicada" | "pendiente" | "en_vivo"
+  >("todas");
+
+  const canRegister =
+    isPreEvent &&
+    eventConfig.registrationOpen &&
+    !isFull;
+
+  const heroBadge = isPostEvent
+    ? "FECHA FINALIZADA"
+    : isLiveEvent
+      ? "EVENTO ACTIVO"
+      : "PRÓXIMA FECHA";
+
+  const heroTitle = isPostEvent
+    ? "Resultados oficiales"
+    : isLiveEvent
+      ? eventConfig.currentRound || "Evento activo"
+      : eventConfig.eventLabel;
+
+  const heroSubtitle = isPostEvent
+    ? "Resultados, ranking y batallas de la jornada."
+    : isLiveEvent
+      ? "Resultados actualizados por el equipo."
+      : "Freestyle competitivo desde RD.";
+
+  const visibleBattles = battles.filter((battle) => {
+    const status = battle.estado?.toLowerCase();
+
+    if (status === "oculta") return false;
+    if (battleFilter === "todas") return true;
+
+    return status === battleFilter;
+  });
+
+  const battlesByDate = visibleBattles.reduce<Record<string, Battle[]>>(
+    (groups, battle) => {
+      const key = battle.fecha || eventConfig.eventLabel;
+
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+
+      groups[key].push(battle);
+
+      return groups;
+    },
+    {}
+  );
+
+  const getYoutubeId = (url: string) => {
+    if (!url) return "";
+
+    const match = url.match(
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&?/]+)/
+    );
+
+    return match?.[1] || "";
+  };
+
+  const getYoutubeEmbedUrl = (url: string) => {
+    const videoId = getYoutubeId(url);
+
+    return videoId
+      ? `https://www.youtube.com/embed/${videoId}`
+      : "";
+  };
+
+  const getYoutubeThumbnailUrl = (url: string) => {
+    const videoId = getYoutubeId(url);
+
+    return videoId
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      : "";
+  };
+
+  const getRankingStatusClass = (estado: string) => {
+    const status = estado?.toLowerCase();
+
+    if (status === "campeon") return "bg-yellow-400 text-black";
+    if (status === "clasificado") return "bg-green-400/10 text-green-300";
+    if (status === "eliminado") return "bg-red-400/10 text-red-300";
+
+    return "bg-white/10 text-gray-300";
+  };
 
   // 🔁 Persistencia de vista (MEJORADO)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const saved = localStorage.getItem("view");
-    if (saved === "evento" || saved === "mcs" || saved === "ranking") {
+    if (
+      saved === "evento" ||
+      saved === "mcs" ||
+      saved === "ranking" ||
+      saved === "batallas"
+    ) {
       setView(saved);
     }
   }, []);
@@ -57,9 +209,6 @@ export default function Home() {
     if (typeof window === "undefined") return;
     localStorage.setItem("view", view);
   }, [view]);
-
-  // 🔁 Flip card
-  const [flipped, setFlipped] = useState(false);
 
   // ⏳ Próximo reveal
   const [nextReveal, setNextReveal] = useState({
@@ -97,8 +246,46 @@ export default function Home() {
 
       const data = await res.json();
 
+      const config = data.config;
+
+      setEventPhase(
+        config?.phase === "live_event" || config?.phase === "post_event"
+          ? config.phase
+          : "pre_event"
+      );
+
+      setEventConfig({
+        registrationOpen:
+          String(config?.registrationOpen).toLowerCase() === "true",
+        currentRound: config?.currentRound || "Inscripciones",
+        youtubeLiveUrl: config?.youtubeLiveUrl || "",
+        eventDate: config?.eventDate || "2026-05-30T15:00:00-04:00",
+        eventLabel: config?.eventLabel || "FECHA 1 | 30 de mayo",
+        champion: config?.champion || "",
+        runnerUp: config?.runnerUp || "",
+        eventSummary: config?.eventSummary || "",
+        nextEventLabel: config?.nextEventLabel || "",
+        nextEventDate: config?.nextEventDate || "",
+      });
+
       // ✅ MCs
       setMcs(Array.isArray(data.data) ? data.data : []);
+
+      setRanking(
+        Array.isArray(data.ranking)
+          ? [...data.ranking].sort((a: RankingMC, b: RankingMC) => {
+            if (b.puntos !== a.puntos) return b.puntos - a.puntos;
+            if (b.victorias !== a.victorias) return b.victorias - a.victorias;
+            return a.derrotas - b.derrotas;
+          })
+          : []
+      );
+
+      setBattles(
+        Array.isArray(data.battles)
+          ? data.battles
+          : []
+      );
 
       if (typeof data.serverTime === "number") {
         setServerOffset(data.serverTime - Date.now());
@@ -107,10 +294,6 @@ export default function Home() {
       setNextRevealAt(
         typeof data.nextRevealAt === "number" ? data.nextRevealAt : null
       );
-
-      if (typeof data.hypeCount === "number") {
-        setHypeCount(data.hypeCount);
-      }
 
       // ✅ Slots robusto
       const rawSlots = data.restantes;
@@ -127,6 +310,8 @@ export default function Home() {
     } catch (err) {
       console.error("Error cargando datos:", err);
       setMcs([]);
+      setRanking([]);
+      setBattles([]);
       setSlots(null);
     }
   }, []);
@@ -156,7 +341,7 @@ export default function Home() {
 
     const source = new EventSource("/api/realtime");
 
-    source.addEventListener("open", () => setIsLive(true));
+    source.addEventListener("open", () => setSseConnected(true));
 
     source.addEventListener("tick", (event) => {
       try {
@@ -170,10 +355,6 @@ export default function Home() {
           typeof payload.nextRevealAt === "number" ? payload.nextRevealAt : null
         );
 
-        if (typeof payload.hypeCount === "number") {
-          setHypeCount(payload.hypeCount);
-        }
-
         if (typeof payload.nextRevealAt === "number") {
           const diff = payload.nextRevealAt - payload.serverTime;
           if (diff <= 1500) fetchData();
@@ -184,22 +365,14 @@ export default function Home() {
     });
 
     source.addEventListener("error", () => {
-      setIsLive(false);
+      setSseConnected(false);
     });
 
     return () => {
       source.close();
-      setIsLive(false);
+      setSseConnected(false);
     };
   }, [fetchData]);
-
-  // 🔁 Al cambiar de vista, dejamos la tarjeta en el frente.
-  // Se eliminó el auto-flip porque interrumpía el scroll en móvil.
-  useEffect(() => {
-    if (view !== "mcs") {
-      setFlipped(false);
-    }
-  }, [view]);
 
   // ⏳ Próxima revelación
   useEffect(() => {
@@ -234,14 +407,19 @@ export default function Home() {
 
   // ⏳ Countdown evento
   useEffect(() => {
-    const targetDate = new Date("2026-05-30T19:00:00.000Z"); // 30 mayo 2026, 3:00 PM RD
+    if (!eventConfig.eventDate || !isPreEvent) {
+      setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
+      return;
+    }
 
-    const interval = setInterval(() => {
+    const targetDate = new Date(eventConfig.eventDate);
+
+    const updateCountdown = () => {
       const now = new Date();
       const diff = targetDate.getTime() - now.getTime();
 
       if (diff <= 0) {
-        clearInterval(interval);
+        setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
         return;
       }
 
@@ -251,10 +429,14 @@ export default function Home() {
         m: Math.floor((diff / (1000 * 60)) % 60),
         s: Math.floor((diff / 1000) % 60),
       });
-    }, 1000);
+    };
+
+    updateCountdown();
+
+    const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [eventConfig.eventDate, isPreEvent]);
 
   const visibleMcs = useMemo(() => mcs.filter((mc) => mc.visible), [mcs]);
   const revealedCount = visibleMcs.length;
@@ -277,7 +459,7 @@ export default function Home() {
 
     const pageUrl = baseUrl;
     const imageUrl = `${baseUrl}/api/share`;
-    const text = `🔥 Pila de Rap: lineup completo con ${revealedCount}/32 MCs. Sábado 30 de mayo, 3:00 PM RD.`;
+    const text = `🔥 Pila de Rap: lineup oficial con ${revealedCount}/32 MCs. ${eventConfig.eventLabel}, 3:00 PM RD.`;
 
     try {
       const imageResponse = await fetch(imageUrl, { cache: "no-store" });
@@ -315,7 +497,7 @@ export default function Home() {
         window.open(imageUrl, "_blank", "noopener,noreferrer");
       }
     }
-  }, [revealedCount]);
+  }, [revealedCount, eventConfig.eventLabel]);
 
   // 🔥 Skeleton loading elegante
   if (loading) {
@@ -323,9 +505,15 @@ export default function Home() {
       <div className="fixed inset-0 bg-black text-white flex items-center justify-center z-50 px-5">
         <div className="w-full max-w-md rounded-3xl border border-yellow-400/15 bg-white/[0.03] p-5 shadow-2xl">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-yellow-400/20 animate-pulse" />
+            <Image
+              src="/logo.png"
+              alt="Pila de Ra'"
+              width={52}
+              height={52}
+              className="h-12 w-auto object-contain"
+            />
             <div className="flex-1 space-y-2">
-              <div className="h-4 w-2/3 rounded-full bg-yellow-400/20 animate-pulse" />
+              <div className="h-4 w-2/3 rounded-full bg-yellow-400/10 animate-pulse" />
               <div className="h-3 w-1/2 rounded-full bg-white/10 animate-pulse" />
             </div>
           </div>
@@ -343,7 +531,7 @@ export default function Home() {
           </div>
 
           <p className="mt-5 text-center text-yellow-400 text-xs tracking-[0.3em] animate-pulse">
-            CARGANDO LINEUP
+            CARGANDO PILA DE RA'
           </p>
         </div>
       </div>
@@ -373,7 +561,7 @@ export default function Home() {
         opacity-40
         pointer-events-none
       "
-          src="https://www.youtube.com/embed/7IH3cXRUKsI?autoplay=1&mute=1&loop=1&playlist=7IH3cXRUKsI&controls=0&modestbranding=1"
+          src="https://www.youtube.com/embed/JNHT4Hh77LQ?autoplay=1&mute=1&loop=1&playlist=JNHT4Hh77LQ&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
           allowFullScreen
@@ -404,7 +592,7 @@ export default function Home() {
       w-[420px]
       h-[420px]
       rounded-full
-      bg-yellow-400/20
+      bg-yellow-400/10
       blur-[120px]
       z-10
     "
@@ -427,7 +615,7 @@ export default function Home() {
       w-[380px]
       h-[380px]
       rounded-full
-      bg-yellow-300/20
+      bg-yellow-300/10
       blur-[120px]
       z-10
     "
@@ -450,84 +638,66 @@ export default function Home() {
             className="text-center max-w-2xl mx-auto"
           >
 
-            {/* TITLE */}
-            <motion.h1
-              animate={{ y: [0, -3, 0] }}
-              transition={{
-                repeat: Infinity,
-                duration: 3,
-                ease: "easeInOut",
-              }}
-              className="
-            text-4xl
-            sm:text-5xl
-            md:text-7xl
-            font-black
-            tracking-tight
-            text-yellow-400
-            leading-none
-            mb-5
-          "
-            >
-              🔋 Pila de Ra'
-            </motion.h1>
+            <div className="text-center">
+              <div className="mx-auto mb-5 flex justify-center">
+                <Image
+                  src="/logo.png"
+                  alt="Pila de Ra'"
+                  width={180}
+                  height={180}
+                  priority
+                  className="h-24 w-auto object-contain sm:h-28 md:h-36 drop-shadow-[0_0_32px_rgba(250,204,21,0.22)]"
+                />
+              </div>
 
-            {/* SUBTITLE */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="
-            text-lg
-            md:text-2xl
-            text-gray-200
-            font-medium
-            mb-3
-          "
-            >
-              ¡LA PLAZA SIGUE VIVA!
-            </motion.p>
+              <div className="inline-flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-4 py-2 text-[11px] font-black uppercase tracking-[0.3em] text-yellow-300">
+                <div className="h-2 w-2 rounded-full bg-yellow-400" />
+                {heroBadge}
+              </div>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.35 }}
-              className="
-            text-sm
-            md:text-lg
-            text-gray-400
-            max-w-lg
-            mx-auto
-            leading-relaxed
-            mb-10
-          "
-            >
-              Formatos sorpresa, premio en efectivo y pila de vibras.
-            </motion.p>
+              <motion.h1
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="mt-5 text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-none"
+              >
+                {heroTitle}
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 max-w-xl mx-auto text-sm md:text-base leading-relaxed text-gray-400"
+              >
+                {heroSubtitle}
+              </motion.p>
+            </div>
 
             {/* ⏳ COUNTDOWN */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: 0.45,
-                duration: 0.5,
-              }}
-              className="flex justify-center gap-3 flex-wrap mb-10"
-            >
-              {Object.entries(timeLeft).map(([label, value]) => (
-                <motion.div
-                  key={label}
-                  whileHover={{
-                    y: -4,
-                    scale: 1.03,
-                  }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 300,
-                    damping: 18,
-                  }}
-                  className="
+            {isPreEvent && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  delay: 0.45,
+                  duration: 0.5,
+                }}
+                className="mt-8 flex justify-center gap-3 flex-wrap mb-10"
+              >
+                {Object.entries(timeLeft).map(([label, value]) => (
+                  <motion.div
+                    key={label}
+                    whileHover={{
+                      y: -4,
+                      scale: 1.03,
+                    }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 300,
+                      damping: 18,
+                    }}
+                    className="
                 min-w-[72px]
                 px-4
                 py-3
@@ -538,36 +708,37 @@ export default function Home() {
                 border-yellow-400/20
                 shadow-lg
               "
-                >
-                  <div className="text-2xl md:text-3xl font-black text-yellow-300">
-                    {value}
-                  </div>
+                  >
+                    <div className="text-2xl md:text-3xl font-black text-yellow-300">
+                      {value}
+                    </div>
 
-                  <div className="text-[11px] uppercase tracking-widest text-gray-500 mt-1">
-                    {label === "d"
-                      ? "Días"
-                      : label === "h"
-                        ? "Horas"
-                        : label === "m"
-                          ? "Min"
-                          : "Seg"}
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
+                    <div className="text-[11px] uppercase tracking-widest text-gray-500 mt-1">
+                      {label === "d"
+                        ? "Días"
+                        : label === "h"
+                          ? "Horas"
+                          : label === "m"
+                            ? "Min"
+                            : "Seg"}
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
 
           </motion.div>
 
           {/* TOGGLE PAGS */}
           <div className="flex justify-center mb-10">
-            <div className="relative flex bg-black/60 border border-yellow-400/20 rounded-xl p-1 w-full max-w-sm">
+            <div className="relative grid grid-cols-4 bg-black/70 border border-white/10 rounded-2xl p-1 w-full max-w-md backdrop-blur-xl overflow-hidden">
 
               {/* 🔥 PILL ANIMADO */}
               <motion.div
                 layoutId="toggle-pill"
-                className="absolute top-1 bottom-1 left-1 right-1 rounded-lg bg-yellow-400"
+                className="absolute top-1 bottom-1 left-1 right-1 rounded-xl bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.18)]"
                 style={{
-                  width: `calc(100% / 3 - 4px)`,
+                  width: `calc(100% / 4 - 4px)`,
                 }}
                 animate={{
                   x:
@@ -575,7 +746,9 @@ export default function Home() {
                       ? "0%"
                       : view === "mcs"
                         ? "100%"
-                        : "200%",
+                        : view === "ranking"
+                          ? "200%"
+                          : "300%",
                 }}
                 transition={{
                   type: "spring",
@@ -588,11 +761,12 @@ export default function Home() {
                 { key: "evento", label: "📅 Evento" },
                 { key: "mcs", label: "🎤 MCs" },
                 { key: "ranking", label: "🏆 Ranking" },
+                { key: "batallas", label: "⚔️ Batallas" },
               ] as const).map((item) => (
                 <button
                   key={item.key}
                   onClick={() => setView(item.key)}
-                  className={`relative z-10 flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold transition-colors duration-200
+                  className={`relative z-10 px-1.5 py-2 rounded-lg text-[10px] sm:text-sm font-black transition-colors duration-200
         ${view === item.key
                       ? "text-black"
                       : "text-gray-400 hover:text-yellow-300"
@@ -635,13 +809,10 @@ export default function Home() {
             bg-black/60 backdrop-blur-xl
             border border-yellow-400/20
             rounded-3xl
-            p-6 md:p-8
+            p-5 md:p-8
             shadow-[0_0_40px_rgba(250,204,21,0.08)]
           "
                   >
-
-                    {/* 🔥 Glow */}
-                    <div className="absolute inset-0 bg-yellow-400/5 blur-3xl pointer-events-none" />
 
                     {/* CONTENT */}
                     <div className="relative z-10">
@@ -649,31 +820,147 @@ export default function Home() {
                       {/* HEADER */}
                       <div className="text-center">
 
-                        <motion.h2
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.05 }}
-                          className="text-3xl md:text-4xl font-black text-yellow-400 tracking-tight mb-3"
-                        >
-                          Próximo Evento
-                        </motion.h2>
-
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: 0.1 }}
                           className="space-y-1"
                         >
-                          <p className="text-lg text-gray-200">
-                            📅 Sábado, 30 de mayo
-                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-500">
+                                Fecha
+                              </p>
+                              <p className="mt-1 text-sm font-black text-white">
+                                {eventConfig.eventLabel}
+                              </p>
+                            </div>
 
-                          <p className="text-lg text-gray-300">
-                            🕒 3:00 PM
-                          </p>
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-500">
+                                Hora
+                              </p>
+                              <p className="mt-1 text-sm font-black text-white">
+                                3:00 PM
+                              </p>
+                            </div>
+                          </div>
                         </motion.div>
 
                       </div>
+
+                      {isLiveEvent && (
+                        <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-white/[0.03] px-4 py-4 text-center">
+                          <p className="text-xs font-black uppercase tracking-[0.25em] text-yellow-400">
+                            Evento activo en
+                          </p>
+
+                          <p className="mt-2 text-lg font-black text-white">
+                            {eventConfig.currentRound}
+                          </p>
+
+                          <p className="mt-2 text-sm text-gray-400">
+                            Consulta el ranking y las batallas oficiales.
+                          </p>
+
+                          <div className="mt-4 flex flex-col sm:flex-row justify-center gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setView("ranking")}
+                              className="rounded-full bg-yellow-400 px-5 py-2 text-xs font-black uppercase tracking-wide text-black hover:bg-yellow-300"
+                            >
+                              Ver ranking
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setView("batallas")}
+                              className="rounded-full border border-white/10 bg-black/40 px-5 py-2 text-xs font-black uppercase tracking-wide text-gray-200 hover:border-yellow-400/30 hover:text-yellow-300"
+                            >
+                              Ver batallas
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {isPostEvent && (
+                        <div className="mt-5 rounded-3xl border border-yellow-400/20 bg-black/60 p-6 backdrop-blur-xl">
+
+                          <div className="text-center">
+                            <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-400">
+                              Resultados
+                            </p>
+
+                            {eventConfig.eventSummary && (
+                              <p className="mt-3 text-sm text-gray-400 max-w-xl mx-auto">
+                                {eventConfig.eventSummary}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* 🏆 PODIO */}
+                          <div className="mt-8 grid gap-4 md:grid-cols-2">
+
+                            <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5 text-center">
+                              <p className="text-xs font-black uppercase tracking-[0.25em] text-yellow-300">
+                                Campeón
+                              </p>
+
+                              <h4 className="mt-3 text-3xl font-black text-white">
+                                {eventConfig.champion || "Pendiente"}
+                              </h4>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center">
+                              <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-300">
+                                Subcampeón
+                              </p>
+
+                              <h4 className="mt-3 text-3xl font-black text-white">
+                                {eventConfig.runnerUp || "Pendiente"}
+                              </h4>
+                            </div>
+
+                          </div>
+
+                          {/* 🎯 CTA */}
+                          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3">
+
+                            <button
+                              type="button"
+                              onClick={() => setView("ranking")}
+                              className="rounded-full bg-yellow-400 px-6 py-3 text-sm font-black uppercase tracking-wide text-black hover:bg-yellow-300"
+                            >
+                              Ver ranking
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setView("batallas")}
+                              className="rounded-full border border-white/10 bg-black/40 px-6 py-3 text-sm font-black uppercase tracking-wide text-gray-200 hover:border-yellow-400/30 hover:text-yellow-300"
+                            >
+                              Ver batallas
+                            </button>
+
+                          </div>
+
+                          {/* 📅 NEXT EVENT */}
+                          {eventConfig.nextEventLabel && (
+                            <div className="mt-8 rounded-2xl border border-white/10 bg-black/40 p-5 text-center">
+
+                              <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">
+                                Próxima fecha
+                              </p>
+
+                              <p className="mt-2 text-xl font-black text-white">
+                                {eventConfig.nextEventLabel}
+                              </p>
+
+                            </div>
+                          )}
+
+                        </div>
+                      )}
 
                       {/* JUECES */}
                       <div className="flex justify-center gap-3 mt-8 mb-7 flex-wrap">
@@ -743,9 +1030,11 @@ export default function Home() {
                   "
                           >
 
-                            <img
+                            <Image
                               src="/map-preview.jpg"
                               alt="Ubicación del evento"
+                              width={900}
+                              height={360}
                               className="
                       w-full h-40 object-cover
                       opacity-80 group-hover:opacity-100
@@ -780,27 +1069,48 @@ export default function Home() {
                         {/* BUTTON */}
                         <motion.button
                           onClick={() => {
-                            if (!isFull) setOpen(true);
+                            if (canRegister) {
+                              setOpen(true);
+                              return;
+                            }
+
+                            if (isLiveEvent) {
+                              setView("ranking");
+                              return;
+                            }
+
+                            if (isPostEvent) {
+                              setView("batallas");
+                              return;
+                            }
                           }}
-                          disabled={isFull}
-                          whileHover={!isFull ? { scale: 1.02 } : {}}
-                          whileTap={!isFull ? { scale: 0.98 } : {}}
+                          disabled={!canRegister && isPreEvent}
+                          whileHover={canRegister || isLiveEvent || isPostEvent ? { scale: 1.02 } : {}}
+                          whileTap={canRegister || isLiveEvent || isPostEvent ? { scale: 0.98 } : {}}
                           className={`
-                  w-full py-3 rounded-2xl font-bold text-sm
+                  w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-wide
                   transition-all duration-200
-                  ${isFull
-                              ? "bg-gray-700 text-gray-400 cursor-not-allowed"
-                              : "bg-yellow-400 text-black hover:bg-yellow-300"
+                  ${canRegister
+                              ? "bg-yellow-400 text-black hover:bg-yellow-300"
+                              : isLiveEvent
+                                ? "bg-yellow-400 text-black hover:bg-yellow-300"
+                                : isPostEvent
+                                  ? "bg-yellow-400 text-black hover:bg-yellow-300"
+                                  : "bg-gray-700 text-gray-400 cursor-not-allowed"
                             }
                 `}
                         >
-                          {isFull
-                            ? "❌ Inscripciones cerradas"
-                            : "📝 Inscripciones"}
+                          {canRegister
+                            ? "📝 Inscribirme"
+                            : isLiveEvent
+                              ? "🏆 Ver ranking"
+                              : isPostEvent
+                                ? "⚔️ Ver batallas"
+                                : "Inscripciones cerradas"}
                         </motion.button>
 
                         {/* CUPOS */}
-                        {typeof slots === "number" && (
+                        {isPreEvent && typeof slots === "number" && (
                           <motion.div
                             key={slots}
                             initial={{ opacity: 0, y: 6 }}
@@ -935,12 +1245,12 @@ export default function Home() {
               <div className="mb-4 grid grid-cols-2 gap-2">
                 <div className="rounded-2xl border border-yellow-400/15 bg-black/55 px-3 py-3 text-center backdrop-blur-xl">
                   <p className="text-[9px] uppercase tracking-[0.22em] text-gray-500 font-black">
-                    {isRosterComplete ? "Evento en" : "Próximo reveal"}
+                    {isPreEvent && !isRosterComplete ? "Próximo reveal" : "Estado"}
                   </p>
 
                   {isRosterComplete ? (
                     <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
-                      {timeLeft.d}d {timeLeft.h}h
+                      Completo
                     </p>
                   ) : (
                     <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
@@ -967,10 +1277,10 @@ export default function Home() {
               </div>
 
               <div className="mb-4 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gray-500">
-                <span className={`h-2 w-2 rounded-full ${isLive ? "bg-green-400" : "bg-yellow-400"}`} />
+                <span className={`h-2 w-2 rounded-full ${sseConnected ? "bg-green-400" : "bg-yellow-400"}`} />
                 {isRosterComplete
-                  ? "Roster completo • camino al evento"
-                  : isLive
+                  ? "Roster oficial confirmado"
+                  : sseConnected
                     ? "Revelaciones en vivo"
                     : "Sincronizando lineup"}
               </div>
@@ -980,7 +1290,7 @@ export default function Home() {
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.35 }}
-                className="relative overflow-hidden rounded-3xl border border-yellow-400/20 bg-black/75 p-5 sm:p-6 shadow-[0_0_45px_rgba(250,204,21,0.10)] backdrop-blur-xl"
+                className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/70 p-5 sm:p-6 shadow-[0_0_45px_rgba(250,204,21,0.10)] backdrop-blur-xl"
               >
                 <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.10),transparent_38rem)]" />
                 <div className="absolute inset-0 pointer-events-none opacity-[0.06] bg-[radial-gradient(circle_at_1px_1px,#facc15_1px,transparent_0)] [background-size:18px_18px]" />
@@ -996,8 +1306,8 @@ export default function Home() {
                       </h2>
                       <p className="mt-2 text-xs text-gray-400 leading-relaxed">
                         {isRosterComplete
-                          ? "Ya no quedan drops pendientes. Ahora la vuelta es llegar al evento."
-                          : "Los nombres se van revelando hasta completar los 32 cupos."}
+                          ? "Participantes confirmados."
+                          : "Participantes revelados oficialmente."}
                       </p>
                     </div>
 
@@ -1044,7 +1354,7 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-sm">
                     {Array.from({ length: TOTAL_MCS }).map((_, i) => {
                       const mc = mcs[i];
                       const visible = Boolean(mc?.visible || isRosterComplete);
@@ -1055,10 +1365,10 @@ export default function Home() {
                           initial={{ opacity: 0, scale: 0.86, y: 10 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           transition={{ delay: i * 0.012, duration: 0.28 }}
-                          className={`relative overflow-hidden rounded-xl border px-2 py-3 text-center min-h-[46px] flex items-center justify-center ${visible
+                          className={`relative overflow-hidden rounded-xl border px-2 py-2.5 sm:py-3 text-center min-h-[42px] sm:min-h-[46px] flex items-center justify-center ${visible
                             ? "bg-yellow-400/15 border-yellow-400/35 text-yellow-100"
                             : "bg-black/50 border-yellow-400/10 text-gray-600"
-                          }`}
+                            }`}
                         >
                           <span className={`relative z-10 font-black text-xs sm:text-sm break-words ${visible ? "" : "blur-[1px]"}`}>
                             {visible ? mc?.alias || "MC" : "???"}
@@ -1071,7 +1381,9 @@ export default function Home() {
                   <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
                       <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">FECHA</p>
-                      <p className="mt-1 text-xs font-black text-yellow-200">30 de mayo</p>
+                      <p className="mt-1 text-xs font-black text-yellow-200">
+                        {eventConfig.eventLabel.replace("FECHA 1 | ", "")}
+                      </p>
                     </div>
                     <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
                       <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">HORA</p>
@@ -1097,85 +1409,349 @@ export default function Home() {
                 duration: 0.4,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="w-full max-w-xl mx-auto"
+              className="w-full max-w-3xl mx-auto"
             >
-              <div className="relative overflow-hidden bg-black/60 border border-yellow-400/20 rounded-2xl p-8 text-center backdrop-blur-xl">
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/70 p-5 md:p-8 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+                <div className="relative z-10 text-center mb-7">
+                  <div className="mb-4 text-5xl">🏆</div>
 
-                {/* 🔥 Glow */}
-                <div className="absolute inset-0 bg-yellow-400/5 blur-3xl pointer-events-none" />
+                  <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-400">
+                    Tabla oficial
+                  </p>
 
-                {/* 🏆 ICON */}
-                <motion.div
-                  animate={{
-                    y: [0, -4, 0],
-                  }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 2.5,
-                  }}
-                  className="text-6xl mb-5"
-                >
-                  🏆
-                </motion.div>
+                  <h2 className="mt-3 text-3xl md:text-4xl font-black text-white tracking-tight">
+                    Ranking de MCs
+                  </h2>
 
-                {/* TITLE */}
-                <h2 className="text-3xl md:text-4xl font-black text-yellow-400 tracking-tight mb-3">
-                  Ranking Oficial
-                </h2>
-
-                {/* SUBTITLE */}
-                <p className="text-gray-300 text-sm md:text-base max-w-md mx-auto leading-relaxed">
-                  Después de la primera fecha podrás ver:
-                </p>
-
-                {/* FEATURES */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8">
-
-                  {[
-                    "📊 Puntajes",
-                    "🔥 MVPs",
-                    "🏅 Clasificados",
-                  ].map((item, i) => (
-                    <motion.div
-                      key={item}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.08 }}
-                      className="bg-black/50 border border-yellow-400/10 rounded-xl py-4 px-3"
-                    >
-                      <span className="text-sm text-yellow-300 font-medium">
-                        {item}
-                      </span>
-                    </motion.div>
-                  ))}
-
+                  <p className="mt-3 text-gray-400 text-sm md:text-base max-w-md mx-auto leading-relaxed">
+                    Tabla oficial de puntos y resultados.
+                  </p>
                 </div>
 
-                {/* STATUS */}
-                <div className="mt-8">
+                {isPreEvent || ranking.length === 0 ? (
+                  <div className="relative z-10 rounded-2xl border border-yellow-400/10 bg-black/50 p-7 text-center">
+                    <p className="text-xl font-black text-yellow-400">
+                      Ranking pendiente
+                    </p>
 
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-yellow-400/10 border border-yellow-400/20">
-                    <motion.div
-                      animate={{ opacity: [0.4, 1, 0.4] }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 1.5,
-                      }}
-                      className="w-2 h-2 rounded-full bg-yellow-400"
-                    />
-
-                    <span className="text-xs uppercase tracking-[0.2em] text-yellow-300">
-                      Próximamente
-                    </span>
+                    <p className="mt-2 text-sm text-gray-400">
+                      La tabla se activará cuando inicie la jornada.
+                    </p>
                   </div>
+                ) : (
+                  <div className="relative z-10">
+                    {isPostEvent && ranking.length >= 3 && (
+                      <div className="grid gap-4 md:grid-cols-3 mb-6">
+                        {ranking.slice(0, 3).map((mc, index) => (
+                          <div
+                            key={`${mc.alias}-top-${index}`}
+                            className={`rounded-2xl p-5 text-center border ${index === 0
+                              ? "border-yellow-400/30 bg-yellow-400/10"
+                              : "border-white/10 bg-black/40"
+                              }`}
+                          >
+                            <p className="text-xs uppercase tracking-[0.25em] text-gray-400 font-black">
+                              {index === 0 ? "1er lugar" : index === 1 ? "2do lugar" : "3er lugar"}
+                            </p>
 
+                            <h3 className="mt-3 text-3xl font-black text-white">
+                              {mc.alias}
+                            </h3>
+
+                            <p className="mt-2 text-yellow-400 text-xl font-black">
+                              {mc.puntos} pts
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                      {ranking.map((mc, index) => {
+
+                        return (
+                          <motion.div
+                            key={`${mc.alias}-${index}`}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.04 }}
+                            className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-white/10 px-4 py-4 last:border-b-0"
+                          >
+                            <div
+                              className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-black ${index === 0
+                                ? "bg-yellow-400 text-black"
+                                : "bg-white/10 text-white"
+                                }`}
+                            >
+                              #{index + 1}
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-lg font-black text-white">
+                                {mc.alias}
+                              </p>
+
+                              <p className="truncate text-xs text-gray-400">
+                                {mc.nombre || "MC"}
+                              </p>
+
+                              <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide">
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
+                                  {mc.victorias}V
+                                </span>
+
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
+                                  {mc.derrotas}D
+                                </span>
+
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
+                                  {mc.replicas}R
+                                </span>
+
+                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
+                                  +{mc.bonus} Bonus
+                                </span>
+
+                                <span
+                                  className={`rounded-full px-2 py-1 ${getRankingStatusClass(mc.estado)}`}
+                                >
+                                  {mc.estado || "activo"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="col-span-2 text-left sm:col-span-1 sm:text-right">
+                              <p className="text-2xl md:text-3xl font-black text-yellow-400 tabular-nums">
+                                {mc.puntos.toLocaleString("es-DO")}
+                              </p>
+
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                pts
+                              </p>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {view === "batallas" && (
+            <motion.div
+              key="batallas"
+              initial={{ opacity: 0, y: 30, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.96 }}
+              transition={{
+                duration: 0.4,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="w-full max-w-4xl mx-auto"
+            >
+              <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/70 p-5 md:p-8 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
+
+                <div className="relative z-10 text-center mb-7">
+                  <p className="text-xs font-black uppercase tracking-[0.35em] text-yellow-400">
+                    Archivo oficial
+                  </p>
+
+                  <h2 className="mt-3 text-3xl md:text-4xl font-black text-white tracking-tight">
+                    Batallas
+                  </h2>
+
+                  <p className="mt-3 text-gray-400 text-sm md:text-base">
+                    Videos y resultados por fecha.
+                  </p>
+                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+                    {([
+                      { key: "todas", label: "Todas" },
+                      { key: "publicada", label: "Publicadas" },
+                      { key: "pendiente", label: "Pendientes" },
+                      { key: "en_vivo", label: "En vivo" },
+                    ] as const).map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setBattleFilter(item.key)}
+                        className={`rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-wide transition ${battleFilter === item.key
+                          ? "bg-yellow-400 text-black"
+                          : "border border-white/10 bg-black/40 text-gray-400 hover:border-yellow-400/30 hover:text-yellow-300"
+                          }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* FOOTER */}
-                <p className="text-[11px] text-gray-500 mt-6">
-                  Disponible después de la primera jornada
-                </p>
+                {visibleBattles.length === 0 ? (
+                  <div className="relative z-10 rounded-2xl border border-yellow-400/10 bg-black/50 p-7 text-center">
+                    <p className="text-xl font-black text-yellow-400">
+                      No hay batallas para este filtro
+                    </p>
 
+                    <p className="mt-2 text-sm text-gray-400">
+                      Cambia el filtro o espera nuevas actualizaciones.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="relative z-10 grid gap-4">
+                    {Object.entries(battlesByDate).map(([fecha, group]) => (
+                      <div key={fecha} className="grid gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-px flex-1 bg-yellow-400/10" />
+
+                          <p className="text-xs font-black uppercase tracking-[0.25em] text-yellow-400">
+                            {fecha}
+                          </p>
+
+                          <div className="h-px flex-1 bg-yellow-400/10" />
+                        </div>
+
+                        {group.map((battle, index) => {
+                          const status = battle.estado?.toLowerCase();
+                          const embedUrl = getYoutubeEmbedUrl(battle.youtubeUrl);
+                          const thumbnailUrl = getYoutubeThumbnailUrl(battle.youtubeUrl);
+                          const isPublished = status === "publicada";
+                          const winner = battle.ganador?.trim();
+
+                          return (
+                            <motion.div
+                              key={`${battle.fecha}-${battle.ronda}-${battle.mc1}-${battle.mc2}-${index}`}
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.04 }}
+                              className="overflow-hidden rounded-3xl border border-white/10 bg-black/50"
+                            >
+                              {thumbnailUrl && (
+                                <a
+                                  href={battle.youtubeUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group relative block aspect-video overflow-hidden bg-black"
+                                >
+                                  <Image
+                                    src={thumbnailUrl}
+                                    alt={`${battle.mc1} vs ${battle.mc2}`}
+                                    fill
+                                    unoptimized
+                                    className="object-cover opacity-75 transition duration-300 group-hover:scale-105 group-hover:opacity-100"
+                                  />
+
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-yellow-400 text-2xl text-black shadow-[0_0_30px_rgba(250,204,21,0.35)] transition group-hover:scale-110">
+                                      ▶
+                                    </div>
+                                  </div>
+
+                                  <div className="absolute bottom-4 left-4 right-4 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                    <div>
+                                      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-300">
+                                        {battle.ronda}
+                                      </p>
+
+                                      <h3 className="mt-1 text-xl sm:text-2xl font-black text-white">
+                                        {battle.mc1} vs {battle.mc2}
+                                      </h3>
+                                    </div>
+
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${isPublished
+                                        ? "bg-green-400/15 text-green-300"
+                                        : status === "en_vivo"
+                                          ? "bg-red-400/15 text-red-300"
+                                          : "bg-yellow-400/15 text-yellow-300"
+                                        }`}
+                                    >
+                                      {battle.estado || "pendiente"}
+                                    </span>
+                                  </div>
+                                </a>
+                              )}
+
+                              <div className="p-5">
+                                {!thumbnailUrl && (
+                                  <div className="mb-4">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <p className="text-xs uppercase tracking-[0.25em] text-yellow-400 font-black">
+                                        {battle.ronda}
+                                      </p>
+
+                                      <span
+                                        className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wide ${isPublished
+                                          ? "bg-green-400/10 text-green-300"
+                                          : status === "en_vivo"
+                                            ? "bg-red-400/10 text-red-300"
+                                            : "bg-yellow-400/10 text-yellow-300"
+                                          }`}
+                                      >
+                                        {battle.estado || "pendiente"}
+                                      </span>
+                                    </div>
+
+                                    <h3 className="mt-2 text-2xl font-black text-white">
+                                      {battle.mc1} vs {battle.mc2}
+                                    </h3>
+                                  </div>
+                                )}
+
+                                <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
+                                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-500">
+                                      Ganador
+                                    </p>
+
+                                    <p className="mt-1 text-xl font-black text-yellow-400">
+                                      {winner || "Pendiente"}
+                                    </p>
+                                  </div>
+
+                                  {battle.youtubeUrl ? (
+                                    <a
+                                      href={battle.youtubeUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex justify-center rounded-full bg-yellow-400 px-5 py-3 text-xs font-black uppercase tracking-wide text-black hover:bg-yellow-300"
+                                    >
+                                      Abrir batalla
+                                    </a>
+                                  ) : (
+                                    <p className="text-xs text-gray-500">
+                                      Video pendiente de publicación.
+                                    </p>
+                                  )}
+                                </div>
+
+                                {embedUrl && isPublished && (
+                                  <details className="mt-4">
+                                    <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-yellow-300">
+                                      Ver video aquí
+                                    </summary>
+
+                                    <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black">
+                                      <iframe
+                                        src={embedUrl}
+                                        title={`${battle.mc1} vs ${battle.mc2}`}
+                                        className="aspect-video w-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowFullScreen
+                                      />
+                                    </div>
+                                  </details>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -1187,7 +1763,7 @@ export default function Home() {
 
           {/* Modal */}
           <AnimatePresence>
-            {open && !isFull && (
+            {open && canRegister && (
               <motion.div
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4"
                 initial={{ opacity: 0 }}
@@ -1199,7 +1775,7 @@ export default function Home() {
                   animate={{ scale: 1, opacity: 1, y: 0 }}
                   exit={{ scale: 0.8, opacity: 0, y: 40 }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
-                  className="bg-black border border-yellow-400/30 rounded-2xl p-6 md:p-8 max-w-sm w-full text-center relative max-h-[90svh] overflow-y-auto"
+                  className="rounded-3xl border border-white/10 bg-black/90 p-6 md:p-8 max-w-sm w-full text-center relative max-h-[90svh] overflow-y-auto backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.45)]"
                 >
                   {/* ❌ Cerrar */}
                   <button
@@ -1211,12 +1787,12 @@ export default function Home() {
                     ✕
                   </button>
 
-                  <h2 className="text-2xl font-bold text-yellow-400 mb-4">
-                    📝 Inscripciones
+                  <h2 className="text-2xl font-black text-yellow-400 mb-4">
+                    Inscripción MC
                   </h2>
 
                   {/* 🔥 CONTADOR */}
-                  {typeof slots === "number" && (
+                  {isPreEvent && typeof slots === "number" && (
                     <p className="text-yellow-300 text-sm mb-4">
                       🔥 {32 - slots}/32 MCs confirmados
                     </p>
@@ -1229,6 +1805,12 @@ export default function Home() {
                       e.preventDefault();
                       if (sending) return;
 
+                      if (!canRegister) {
+                        alert("Las inscripciones están cerradas.");
+                        setOpen(false);
+                        return;
+                      }
+
                       const form = e.currentTarget as HTMLFormElement;
 
                       const data = {
@@ -1236,7 +1818,7 @@ export default function Home() {
                         alias: (form.elements.namedItem("alias") as HTMLInputElement).value.trim(),
                         telefono: (form.elements.namedItem("telefono") as HTMLInputElement).value.trim(),
                         instagram: (form.elements.namedItem("instagram") as HTMLInputElement).value.trim(),
-                        fecha: "FECHA 1 | 30 de mayo",
+                        fecha: eventConfig.eventLabel,
                       };
 
                       // 🔒 Validación frontend
@@ -1259,13 +1841,20 @@ export default function Home() {
                         const result = await res.json();
 
                         if (!res.ok) {
-                          if (result.error === "CUPOS_AGOTADOS") {
+                          if (result.error === "INSCRIPCIONES_CERRADAS") {
+                            alert("Las inscripciones están cerradas.");
+                          } else if (result.error === "CUPOS_AGOTADOS") {
                             alert("🔥 Se llenaron los cupos");
                           } else if (result.error === "YA_INSCRITO") {
                             alert("⚠️ Ya estás inscrito con ese número");
+                          } else if (result.error === "TELEFONO_INVALIDO") {
+                            alert("⚠️ El teléfono debe tener 10 dígitos");
+                          } else if (result.error === "CAMPOS_INCOMPLETOS") {
+                            alert("Completa los campos obligatorios.");
                           } else {
                             alert(result.error || "Error inesperado");
                           }
+
                           return;
                         }
 
@@ -1290,23 +1879,27 @@ export default function Home() {
                   >
                     {/* Fecha visible */}
                     <div className="w-full p-2 rounded bg-black border border-yellow-400/20 text-gray-300 text-center">
-                      📅 FECHA 1 | 30 de mayo
+                      📅 {eventConfig.eventLabel}
                     </div>
 
-                    <input type="hidden" name="fecha" value="FECHA 1 | 30 de mayo" />
+                    <input
+                      type="hidden"
+                      name="fecha"
+                      value={eventConfig.eventLabel}
+                    />
 
                     <input
                       name="nombre"
                       placeholder="Nombre real"
                       required
-                      className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-yellow-400"
                     />
 
                     <input
                       name="alias"
                       placeholder="Nombre artístico (MC)"
                       required
-                      className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-yellow-400"
                     />
 
                     <input
@@ -1316,13 +1909,13 @@ export default function Home() {
                       pattern="\d{10}"
                       maxLength={10}
                       inputMode="numeric"
-                      className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-yellow-400"
                     />
 
                     <input
                       name="instagram"
                       placeholder="@instagram (opcional)"
-                      className="w-full p-2 rounded bg-black border border-yellow-400/20 focus:border-yellow-400 outline-none"
+                      className="w-full rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder:text-gray-600 outline-none transition focus:border-yellow-400"
                     />
 
                     <motion.button
@@ -1330,7 +1923,7 @@ export default function Home() {
                       disabled={sending}
                       whileHover={!sending ? { scale: 1.05 } : {}}
                       whileTap={!sending ? { scale: 0.95 } : {}}
-                      className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition ${sending
+                      className={`w-full rounded-2xl py-3 font-black uppercase tracking-wide flex items-center justify-center gap-2 transition ${sending
                         ? "bg-yellow-200 text-black cursor-not-allowed"
                         : "bg-yellow-400 text-black hover:bg-yellow-300"
                         }`}
