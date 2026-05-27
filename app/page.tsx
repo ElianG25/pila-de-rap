@@ -166,14 +166,6 @@ export default function Home() {
     return match?.[1] || "";
   };
 
-  const getYoutubeEmbedUrl = (url: string) => {
-    const videoId = getYoutubeId(url);
-
-    return videoId
-      ? `https://www.youtube.com/embed/${videoId}`
-      : "";
-  };
-
   const getYoutubeThumbnailUrl = (url: string) => {
     const videoId = getYoutubeId(url);
 
@@ -585,7 +577,7 @@ export default function Home() {
         opacity-40
         pointer-events-none
       "
-          src="https://www.youtube.com/embed/JNHT4Hh77LQ?autoplay=1&mute=1&loop=1&playlist=JNHT4Hh77LQ&controls=0&modestbranding=1"
+          src="https://www.youtube.com/embed/jw-aW3a7pSM?autoplay=1&mute=1&loop=1&playlist=jw-aW3a7pSM&controls=0&modestbranding=1"
           title="Background video"
           allow="autoplay"
           allowFullScreen
