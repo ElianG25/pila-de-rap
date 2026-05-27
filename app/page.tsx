@@ -1838,7 +1838,7 @@ export default function Home() {
 
           {/* FOOTER */}
           <p className="text-xs text-gray-600 mt-12 text-center">
-            © {new Date().getFullYear()} ❤️ Pila de Ra' | Desarrollado por{' '}
+            © {new Date().getFullYear()} ❤️ Pila de Ra' | {' '}
             <a
               href="https://t.me/Ztyl3"
               target="_blank"
