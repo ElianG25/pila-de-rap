@@ -774,7 +774,7 @@ export default function Home() {
               />
 
               {([
-                { key: "evento", label: "📅 Evento" },
+                { key: "evento", label: "📅 Eventos" },
                 { key: "mcs", label: "🎤 MCs" },
                 { key: "ranking", label: "🏆 Ranking" },
                 { key: "batallas", label: "⚔️ Batallas" },
