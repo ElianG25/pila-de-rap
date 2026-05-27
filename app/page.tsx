@@ -1838,7 +1838,15 @@ export default function Home() {
 
           {/* FOOTER */}
           <p className="text-xs text-gray-600 mt-12 text-center">
-            © {new Date().getFullYear()} ❤️ Pila de Ra'
+            © {new Date().getFullYear()} ❤️ Pila de Ra' | Desarrollado por{' '}
+            <a
+              href="https://t.me/Ztyl3"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-400 hover:text-yellow-300"
+            >
+              Elian Gomez
+            </a>
           </p>
 
           {/* Modal */}
