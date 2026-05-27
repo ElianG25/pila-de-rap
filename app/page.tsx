@@ -23,8 +23,8 @@ type EventConfig = {
 
 type RankingMC = {
   alias: string;
-  nombre: string;
-  puntos: number;
+  puntosLiga: number;
+  puntosBatalla: number;
   victorias: number;
   derrotas: number;
   replicas: number;
@@ -40,6 +40,8 @@ type Battle = {
   ganador: string;
   youtubeUrl: string;
   estado: string;
+  tipoResultado: "directa" | "replica" | "pendiente" | string;
+  cuentaParaLiga: boolean;
 };
 
 export default function Home() {
@@ -256,7 +258,8 @@ export default function Home() {
 
       setEventConfig({
         registrationOpen:
-          String(config?.registrationOpen).toLowerCase() === "true",
+          config?.registrationOpen === true ||
+          String(config?.registrationOpen).trim().toLowerCase() === "true",
         currentRound: config?.currentRound || "Inscripciones",
         youtubeLiveUrl: config?.youtubeLiveUrl || "",
         eventDate: config?.eventDate || "2026-05-30T15:00:00-04:00",
@@ -274,8 +277,18 @@ export default function Home() {
       setRanking(
         Array.isArray(data.ranking)
           ? [...data.ranking].sort((a: RankingMC, b: RankingMC) => {
-            if (b.puntos !== a.puntos) return b.puntos - a.puntos;
-            if (b.victorias !== a.victorias) return b.victorias - a.victorias;
+            if (b.puntosLiga !== a.puntosLiga) {
+              return b.puntosLiga - a.puntosLiga;
+            }
+
+            if (b.victorias !== a.victorias) {
+              return b.victorias - a.victorias;
+            }
+
+            if (b.puntosBatalla !== a.puntosBatalla) {
+              return b.puntosBatalla - a.puntosBatalla;
+            }
+
             return a.derrotas - b.derrotas;
           })
           : []
@@ -450,6 +463,17 @@ export default function Home() {
 
   const lastVisibleMc = visibleMcs[visibleMcs.length - 1];
   const previousVisibleMc = visibleMcs[visibleMcs.length - 2];
+
+  const podium = ranking.slice(0, 3);
+
+  const championAlias =
+    eventConfig.champion || podium[0]?.alias || "";
+
+  const runnerUpAlias =
+    eventConfig.runnerUp || podium[1]?.alias || "";
+
+  const thirdPlaceAlias =
+    podium[2]?.alias || "";
 
   const shareLineup = useCallback(async () => {
     const baseUrl =
@@ -899,7 +923,7 @@ export default function Home() {
                           </div>
 
                           {/* 🏆 PODIO */}
-                          <div className="mt-8 grid gap-4 md:grid-cols-2">
+                          <div className="mt-8 grid gap-4 md:grid-cols-3">
 
                             <div className="rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-5 text-center">
                               <p className="text-xs font-black uppercase tracking-[0.25em] text-yellow-300">
@@ -907,7 +931,7 @@ export default function Home() {
                               </p>
 
                               <h4 className="mt-3 text-3xl font-black text-white">
-                                {eventConfig.champion || "Pendiente"}
+                                {championAlias || "Pendiente"}
                               </h4>
                             </div>
 
@@ -917,7 +941,17 @@ export default function Home() {
                               </p>
 
                               <h4 className="mt-3 text-3xl font-black text-white">
-                                {eventConfig.runnerUp || "Pendiente"}
+                                {runnerUpAlias || "Pendiente"}
+                              </h4>
+                            </div>
+
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center">
+                              <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-300">
+                                3er lugar
+                              </p>
+
+                              <h4 className="mt-3 text-3xl font-black text-white">
+                                {thirdPlaceAlias || "Pendiente"}
                               </h4>
                             </div>
 
@@ -1241,24 +1275,25 @@ export default function Home() {
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="w-full max-w-xl mx-auto"
             >
-              {/* Estado compacto */}
               <div className="mb-4 grid grid-cols-2 gap-2">
-                <div className="rounded-2xl border border-yellow-400/15 bg-black/55 px-3 py-3 text-center backdrop-blur-xl">
+                <div className="rounded-2xl border border-white/10 bg-black/55 px-3 py-3 text-center backdrop-blur-xl">
                   <p className="text-[9px] uppercase tracking-[0.22em] text-gray-500 font-black">
-                    {isPreEvent && !isRosterComplete ? "Próximo reveal" : "Estado"}
+                    {isPreEvent && !isRosterComplete ? "Próximo reveal" : "Roster"}
                   </p>
 
-                  {isRosterComplete ? (
-                    <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
-                      Completo
-                    </p>
-                  ) : (
-                    <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
-                      {nextReveal.h.toString().padStart(2, "0")}:
-                      {nextReveal.m.toString().padStart(2, "0")}:
-                      {nextReveal.s.toString().padStart(2, "0")}
-                    </p>
-                  )}
+                  <p className="mt-1 text-lg font-black text-yellow-300 leading-none">
+                    {isPreEvent && !isRosterComplete
+                      ? `${nextReveal.h.toString().padStart(2, "0")}:${nextReveal.m
+                        .toString()
+                        .padStart(2, "0")}:${nextReveal.s
+                          .toString()
+                          .padStart(2, "0")}`
+                      : isLiveEvent
+                        ? "En competencia"
+                        : isPostEvent
+                          ? "Finalizado"
+                          : "Completo"}
+                  </p>
                 </div>
 
                 <motion.button
@@ -1277,37 +1312,61 @@ export default function Home() {
               </div>
 
               <div className="mb-4 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gray-500">
-                <span className={`h-2 w-2 rounded-full ${sseConnected ? "bg-green-400" : "bg-yellow-400"}`} />
-                {isRosterComplete
-                  ? "Roster oficial confirmado"
-                  : sseConnected
-                    ? "Revelaciones en vivo"
-                    : "Sincronizando lineup"}
+                <span
+                  className={`h-2 w-2 rounded-full ${isLiveEvent
+                    ? "bg-green-400"
+                    : isPostEvent
+                      ? "bg-gray-400"
+                      : sseConnected
+                        ? "bg-green-400"
+                        : "bg-yellow-400"
+                    }`}
+                />
+
+                {isPostEvent
+                  ? "Participantes de la jornada"
+                  : isLiveEvent
+                    ? "Roster en competencia"
+                    : isRosterComplete
+                      ? "Roster oficial confirmado"
+                      : sseConnected
+                        ? "Revelaciones sincronizadas"
+                        : "Sincronizando roster"}
               </div>
 
-              {/* Card principal MCs */}
               <motion.div
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.35 }}
-                className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/70 p-5 sm:p-6 shadow-[0_0_45px_rgba(250,204,21,0.10)] backdrop-blur-xl"
+                className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/70 p-5 sm:p-6 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl"
               >
-                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.10),transparent_38rem)]" />
-                <div className="absolute inset-0 pointer-events-none opacity-[0.06] bg-[radial-gradient(circle_at_1px_1px,#facc15_1px,transparent_0)] [background-size:18px_18px]" />
+                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(250,204,21,0.08),transparent_34rem)]" />
 
                 <div className="relative z-10">
                   <div className="mb-5 flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.28em] text-yellow-100/50 font-black">
-                        Lineup oficial
+                        {isPostEvent ? "Participantes" : isLiveEvent ? "Competidores" : "Lineup oficial"}
                       </p>
+
                       <h2 className="mt-2 text-2xl sm:text-3xl font-black text-yellow-400 leading-none">
-                        {isRosterComplete ? "🎤 Roster completo" : "🎤 MCs revelados"}
+                        {isPostEvent
+                          ? "MCs de la fecha"
+                          : isLiveEvent
+                            ? "MCs en competencia"
+                            : isRosterComplete
+                              ? "Roster completo"
+                              : "MCs revelados"}
                       </h2>
+
                       <p className="mt-2 text-xs text-gray-400 leading-relaxed">
-                        {isRosterComplete
-                          ? "Participantes confirmados."
-                          : "Participantes revelados oficialmente."}
+                        {isPostEvent
+                          ? "Participantes que formaron parte de esta jornada."
+                          : isLiveEvent
+                            ? "Roster activo durante el desarrollo del evento."
+                            : isRosterComplete
+                              ? "Participantes confirmados."
+                              : "Participantes revelados oficialmente."}
                       </p>
                     </div>
 
@@ -1322,17 +1381,22 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {!isRosterComplete && lastVisibleMc && (
+                  {isPreEvent && !isRosterComplete && lastVisibleMc && (
                     <div className="mb-5 rounded-2xl border border-yellow-400/15 bg-yellow-400/10 px-4 py-4 text-center">
                       <p className="text-[10px] uppercase tracking-[0.24em] text-gray-500 font-black">
                         Último MC revelado
                       </p>
+
                       <p className="mt-2 text-3xl font-black text-yellow-300 break-words">
                         {lastVisibleMc.alias}
                       </p>
+
                       {previousVisibleMc && (
                         <p className="mt-2 text-xs text-gray-400">
-                          También revelado: <span className="font-bold text-yellow-100">{previousVisibleMc.alias}</span>
+                          También revelado:{" "}
+                          <span className="font-bold text-yellow-100">
+                            {previousVisibleMc.alias}
+                          </span>
                         </p>
                       )}
                     </div>
@@ -1340,7 +1404,16 @@ export default function Home() {
 
                   <div className="mb-5">
                     <div className="mb-2 flex items-center justify-between text-[10px] uppercase tracking-[0.18em] font-black text-gray-500">
-                      <span>{isRosterComplete ? "Completo" : "Progreso"}</span>
+                      <span>
+                        {isPostEvent
+                          ? "Jornada cerrada"
+                          : isLiveEvent
+                            ? "Evento activo"
+                            : isRosterComplete
+                              ? "Completo"
+                              : "Progreso"}
+                      </span>
+
                       <span>{revealPercent}%</span>
                     </div>
 
@@ -1349,7 +1422,7 @@ export default function Home() {
                         initial={{ width: 0 }}
                         animate={{ width: `${revealPercent}%` }}
                         transition={{ duration: 0.7, ease: "easeOut" }}
-                        className="h-full rounded-full bg-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.55)]"
+                        className="h-full rounded-full bg-yellow-400 shadow-[0_0_18px_rgba(250,204,21,0.45)]"
                       />
                     </div>
                   </div>
@@ -1357,7 +1430,7 @@ export default function Home() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 text-sm">
                     {Array.from({ length: TOTAL_MCS }).map((_, i) => {
                       const mc = mcs[i];
-                      const visible = Boolean(mc?.visible || isRosterComplete);
+                      const visible = Boolean(mc?.visible || isRosterComplete || isLiveEvent || isPostEvent);
 
                       return (
                         <motion.div
@@ -1367,10 +1440,13 @@ export default function Home() {
                           transition={{ delay: i * 0.012, duration: 0.28 }}
                           className={`relative overflow-hidden rounded-xl border px-2 py-2.5 sm:py-3 text-center min-h-[42px] sm:min-h-[46px] flex items-center justify-center ${visible
                             ? "bg-yellow-400/15 border-yellow-400/35 text-yellow-100"
-                            : "bg-black/50 border-yellow-400/10 text-gray-600"
+                            : "bg-black/50 border-white/10 text-gray-600"
                             }`}
                         >
-                          <span className={`relative z-10 font-black text-xs sm:text-sm break-words ${visible ? "" : "blur-[1px]"}`}>
+                          <span
+                            className={`relative z-10 font-black text-xs sm:text-sm break-words ${visible ? "" : "blur-[1px]"
+                              }`}
+                          >
                             {visible ? mc?.alias || "MC" : "???"}
                           </span>
                         </motion.div>
@@ -1378,20 +1454,38 @@ export default function Home() {
                     })}
                   </div>
 
-                  <div className="mt-5 grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
-                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">FECHA</p>
+                  <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">
+                        Fecha
+                      </p>
                       <p className="mt-1 text-xs font-black text-yellow-200">
                         {eventConfig.eventLabel.replace("FECHA 1 | ", "")}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
-                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">HORA</p>
-                      <p className="mt-1 text-xs font-black text-yellow-200">3:00 PM</p>
+
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">
+                        Estado
+                      </p>
+                      <p className="mt-1 text-xs font-black text-yellow-200">
+                        {isPostEvent
+                          ? "Finalizada"
+                          : isLiveEvent
+                            ? "Activa"
+                            : canRegister
+                              ? "Inscripción abierta"
+                              : "Inscripción cerrada"}
+                      </p>
                     </div>
-                    <div className="rounded-xl border border-yellow-400/10 bg-yellow-400/5 px-2 py-2.5">
-                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">LUGAR</p>
-                      <p className="mt-1 text-xs font-black text-yellow-200">Mirador Sur</p>
+
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-2.5">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-500 font-black">
+                        Lugar
+                      </p>
+                      <p className="mt-1 text-xs font-black text-yellow-200">
+                        Mirador Sur
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1409,7 +1503,7 @@ export default function Home() {
                 duration: 0.4,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="w-full max-w-3xl mx-auto"
+              className="w-full max-w-4xl mx-auto"
             >
               <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/70 p-5 md:p-8 backdrop-blur-xl shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
                 <div className="relative z-10 text-center mb-7">
@@ -1424,7 +1518,7 @@ export default function Home() {
                   </h2>
 
                   <p className="mt-3 text-gray-400 text-sm md:text-base max-w-md mx-auto leading-relaxed">
-                    Tabla oficial de puntos y resultados.
+                    Puntos de liga y puntos de batalla por MC.
                   </p>
                 </div>
 
@@ -1441,44 +1535,55 @@ export default function Home() {
                 ) : (
                   <div className="relative z-10">
                     {isPostEvent && ranking.length >= 3 && (
-                      <div className="grid gap-4 md:grid-cols-3 mb-6">
+                      <div className="mb-6 grid gap-4 md:grid-cols-3">
                         {ranking.slice(0, 3).map((mc, index) => (
                           <div
                             key={`${mc.alias}-top-${index}`}
-                            className={`rounded-2xl p-5 text-center border ${index === 0
-                              ? "border-yellow-400/30 bg-yellow-400/10"
+                            className={`rounded-3xl border p-5 text-center ${index === 0
+                              ? "border-yellow-400/40 bg-yellow-400/10"
                               : "border-white/10 bg-black/40"
                               }`}
                           >
-                            <p className="text-xs uppercase tracking-[0.25em] text-gray-400 font-black">
-                              {index === 0 ? "1er lugar" : index === 1 ? "2do lugar" : "3er lugar"}
+                            <p className="text-xs font-black uppercase tracking-[0.25em] text-gray-400">
+                              {index === 0
+                                ? "1er lugar"
+                                : index === 1
+                                  ? "2do lugar"
+                                  : "3er lugar"}
                             </p>
 
                             <h3 className="mt-3 text-3xl font-black text-white">
                               {mc.alias}
                             </h3>
 
-                            <p className="mt-2 text-yellow-400 text-xl font-black">
-                              {mc.puntos} pts
+                            <p className="mt-2 text-2xl font-black text-yellow-400 tabular-nums">
+                              {mc.puntosLiga.toLocaleString("es-DO")} pts
+                            </p>
+
+                            <p className="mt-1 text-xs font-bold text-gray-500">
+                              Puntos batalla:{" "}
+                              {mc.puntosBatalla.toLocaleString("es-DO")}
                             </p>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                      {ranking.map((mc, index) => {
-
-                        return (
-                          <motion.div
-                            key={`${mc.alias}-${index}`}
-                            initial={{ opacity: 0, y: 12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.04 }}
-                            className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto] items-center gap-4 border-b border-white/10 px-4 py-4 last:border-b-0"
-                          >
+                    <div className="grid gap-3">
+                      {ranking.map((mc, index) => (
+                        <motion.div
+                          key={`${mc.alias}-${index}`}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.035 }}
+                          className={`rounded-3xl border p-4 md:p-5 ${index === 0 && isPostEvent
+                            ? "border-yellow-400/30 bg-yellow-400/10"
+                            : "border-white/10 bg-black/40"
+                            }`}
+                        >
+                          <div className="grid gap-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
                             <div
-                              className={`flex h-11 w-11 items-center justify-center rounded-full text-sm font-black ${index === 0
+                              className={`flex h-12 w-12 items-center justify-center rounded-2xl text-sm font-black ${index === 0
                                 ? "bg-yellow-400 text-black"
                                 : "bg-white/10 text-white"
                                 }`}
@@ -1487,51 +1592,45 @@ export default function Home() {
                             </div>
 
                             <div className="min-w-0">
-                              <p className="truncate text-lg font-black text-white">
-                                {mc.alias}
-                              </p>
-
-                              <p className="truncate text-xs text-gray-400">
-                                {mc.nombre || "MC"}
-                              </p>
-
-                              <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide">
-                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
-                                  {mc.victorias}V
-                                </span>
-
-                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
-                                  {mc.derrotas}D
-                                </span>
-
-                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
-                                  {mc.replicas}R
-                                </span>
-
-                                <span className="rounded-full bg-white/10 px-2 py-1 text-gray-300">
-                                  +{mc.bonus} Bonus
-                                </span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-2xl font-black text-white">
+                                  {mc.alias}
+                                </h3>
 
                                 <span
-                                  className={`rounded-full px-2 py-1 ${getRankingStatusClass(mc.estado)}`}
+                                  className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wide ${getRankingStatusClass(
+                                    mc.estado
+                                  )}`}
                                 >
                                   {mc.estado || "activo"}
                                 </span>
                               </div>
-                            </div>
 
-                            <div className="col-span-2 text-left sm:col-span-1 sm:text-right">
-                              <p className="text-2xl md:text-3xl font-black text-yellow-400 tabular-nums">
-                                {mc.puntos.toLocaleString("es-DO")}
+                              <p className="mt-2 text-sm font-bold text-gray-400">
+                                Puntos batalla:{" "}
+                                <span className="text-gray-200 tabular-nums">
+                                  {mc.puntosBatalla.toLocaleString("es-DO")}
+                                </span>
                               </p>
 
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                              <p className="mt-2 text-xs font-bold text-gray-500">
+                                Victorias: {mc.victorias} | Derrotas: {mc.derrotas} |
+                                Réplicas: {mc.replicas}
+                              </p>
+                            </div>
+
+                            <div className="text-left sm:text-right">
+                              <p className="text-3xl font-black text-yellow-400 tabular-nums">
+                                {mc.puntosLiga.toLocaleString("es-DO")}
+                              </p>
+
+                              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-500">
                                 pts
                               </p>
                             </div>
-                          </motion.div>
-                        );
-                      })}
+                          </div>
+                        </motion.div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -1613,7 +1712,6 @@ export default function Home() {
 
                         {group.map((battle, index) => {
                           const status = battle.estado?.toLowerCase();
-                          const embedUrl = getYoutubeEmbedUrl(battle.youtubeUrl);
                           const thumbnailUrl = getYoutubeThumbnailUrl(battle.youtubeUrl);
                           const isPublished = status === "publicada";
                           const winner = battle.ganador?.trim();
@@ -1674,7 +1772,7 @@ export default function Home() {
                                 </a>
                               )}
 
-                              <div className="p-5">
+                              <div className="p-4">
                                 {!thumbnailUrl && (
                                   <div className="mb-4">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -1701,13 +1799,13 @@ export default function Home() {
                                 )}
 
                                 <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-center">
-                                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-gray-500">
                                       Ganador
                                     </p>
 
-                                    <p className="mt-1 text-xl font-black text-yellow-400">
-                                      {winner || "Pendiente"}
+                                    <p className="mt-1 text-lg font-black text-yellow-400">
+                                      {winner || "Por definir"}
                                     </p>
                                   </div>
 
@@ -1718,7 +1816,7 @@ export default function Home() {
                                       rel="noopener noreferrer"
                                       className="inline-flex justify-center rounded-full bg-yellow-400 px-5 py-3 text-xs font-black uppercase tracking-wide text-black hover:bg-yellow-300"
                                     >
-                                      Abrir batalla
+                                      Ver en YouTube
                                     </a>
                                   ) : (
                                     <p className="text-xs text-gray-500">
@@ -1726,24 +1824,6 @@ export default function Home() {
                                     </p>
                                   )}
                                 </div>
-
-                                {embedUrl && isPublished && (
-                                  <details className="mt-4">
-                                    <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-yellow-300">
-                                      Ver video aquí
-                                    </summary>
-
-                                    <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black">
-                                      <iframe
-                                        src={embedUrl}
-                                        title={`${battle.mc1} vs ${battle.mc2}`}
-                                        className="aspect-video w-full"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                        allowFullScreen
-                                      />
-                                    </div>
-                                  </details>
-                                )}
                               </div>
                             </motion.div>
                           );
