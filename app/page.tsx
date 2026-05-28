@@ -60,7 +60,7 @@ export default function Home() {
 
   const jueces = [
     { nombre: "H-OFER", ig: "mchoferrap" },
-    { nombre: "FELPA", ig: "felpadivo" },
+    { nombre: "???", ig: "" },
     { nombre: "JAVIER", ig: "javierreynoso20" },
   ];
 
@@ -1037,11 +1037,11 @@ export default function Home() {
                       <div className="mb-7">
 
                         <p className="text-xs text-gray-500 mb-3 text-center uppercase tracking-[0.2em]">
-                          📍 Tropical Skatepark • Mirador Sur
+                          📍 Al lado de la Estación del Metro Casandra Damirón
                         </p>
 
                         <a
-                          href="https://maps.app.goo.gl/YBgeMyMwmDQ6AqhE8"
+                          href="https://maps.app.goo.gl/RDw8cWd9wncq2xVGA"
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block group"
@@ -1476,7 +1476,7 @@ export default function Home() {
                         Lugar
                       </p>
                       <p className="mt-1 text-xs font-black text-yellow-200">
-                        Mirador Sur
+                        Estación del Metro Casandra Damirón
                       </p>
                     </div>
                   </div>

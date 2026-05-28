@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://pila-de-rap.vercel.app"),
+  metadataBase: new URL("https://piladerap.vercel.app"),
 
   title: {
     default: "Pila de Rap | Freestyle RD",
@@ -26,11 +26,11 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Pila de Rap",
     description: "La plaza sigue viva. Freestyle, barras y competencia real en RD.",
-    url: "https://pila-de-rap.vercel.app",
+    url: "https://piladerap.vercel.app",
     siteName: "Pila de Rap",
     images: [
       {
-        url: "https://pila-de-rap.vercel.app/api/og",
+        url: "https://piladerap.vercel.app/api/og",
         width: 1200,
         height: 630,
         alt: "Roster revelado de Pila de Rap",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     title: "Pila de Rap",
     description:
       "Eventos de freestyle en RD. Próximo evento: 30 de mayo a las 3:00 PM.",
-    images: ["https://pila-de-rap.vercel.app/api/og"],
+    images: ["https://piladerap.vercel.app/api/og"],
   },
 
   icons: {
