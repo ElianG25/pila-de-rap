@@ -252,7 +252,7 @@ export async function GET() {
               width: "100%",
             }}
           >
-            {["30 DE MAYO, 2026", "3:00 PM", "MIRADOR SUR"].map((text) => (
+            {["30 DE MAYO, 2026", "3:00 PM", "ESTACION DEL METRO CASANDRA DAMIRÓN"].map((text) => (
               <div
                 key={text}
                 style={{
