@@ -60,7 +60,7 @@ export default function Home() {
 
   const jueces = [
     { nombre: "H-OFER", ig: "mchoferrap" },
-    { nombre: "???", ig: "" },
+    { nombre: "ZTYL3", ig: "elianstyle_" },
     { nombre: "JAVIER", ig: "javierreynoso20" },
   ];
 
