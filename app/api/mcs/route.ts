@@ -102,8 +102,9 @@ export async function GET() {
         hypeCount: getHypeCount(total, visibleCount, now),
         mcPerDrop: MC_PER_DROP,
         config: json?.config ?? null,
-        ranking: json?.ranking ?? [],
-        battles: json?.battles ?? [],
+        ranking: Array.isArray(json?.ranking) ? json.ranking : [],
+        battles: Array.isArray(json?.battles) ? json.battles : [],
+        events: Array.isArray(json?.events) ? json.events : [],
       },
       {
         headers: {
@@ -133,6 +134,7 @@ export async function GET() {
         config: null,
         ranking: [],
         battles: [],
+        events: [],
       },
       { status: 500 }
     );

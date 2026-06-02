@@ -16,24 +16,24 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://piladerap.vercel.app"),
 
   title: {
-    default: "Pila de Rap | Freestyle RD",
-    template: "%s | Pila de Rap",
+    default: "Pila de Ra' | Freestyle RD",
+    template: "%s | Pila de Ra'",
   },
 
   description:
     "Eventos de plaza de freestyle en República Dominicana. Barras, flow y competencia real.",
 
   openGraph: {
-    title: "Pila de Rap",
+    title: "Pila de Ra'",
     description: "La plaza sigue viva. Freestyle, barras y competencia real en RD.",
     url: "https://piladerap.vercel.app",
-    siteName: "Pila de Rap",
+    siteName: "Pila de Ra'",
     images: [
       {
         url: "https://piladerap.vercel.app/api/og",
         width: 1200,
         height: 630,
-        alt: "Roster revelado de Pila de Rap",
+        alt: "Roster revelado de Pila de Ra'",
       },
     ],
     locale: "es_DO",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "Pila de Rap",
+    title: "Pila de Ra'",
     description:
       "Eventos de freestyle en RD. Próximo evento: 30 de mayo a las 3:00 PM.",
     images: ["https://piladerap.vercel.app/api/og"],
