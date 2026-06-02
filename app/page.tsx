@@ -727,12 +727,12 @@ export default function Home() {
 
           {/* 🧠 HERO */}
           <HeroHeader
-  heroBadge={heroBadge}
-  heroTitle={heroTitle}
-  heroSubtitle={heroSubtitle}
-  isPreEvent={isPreEvent}
-  timeLeft={timeLeft}
-/>
+            heroBadge={heroBadge}
+            heroTitle={heroTitle}
+            heroSubtitle={heroSubtitle}
+            isPreEvent={isPreEvent}
+            timeLeft={timeLeft}
+          />
 
           {/* TOGGLE PAGS */}
           <div className="sticky top-3 z-40 mb-8 flex justify-center sm:static sm:z-auto sm:mb-10">
@@ -775,10 +775,8 @@ export default function Home() {
           </div>
 
           {/* 🔥 CONTENIDO */}
-          <div className="w-full max-w-xl mx-auto overflow-x-clip">
-
+          <div className="w-full max-w-4xl mx-auto overflow-x-clip">
             <AnimatePresence mode="wait">
-
               {view === "evento" && (
                 <EventView
                   jueces={jueces}
@@ -801,49 +799,47 @@ export default function Home() {
                 />
               )}
 
+              {view === "mcs" && (
+                <McsView
+                  mcs={mcs}
+                  revealedCount={revealedCount}
+                  rosterTotal={rosterTotal}
+                  revealPercent={revealPercent}
+                  isPreEvent={isPreEvent}
+                  isLiveEvent={isLiveEvent}
+                  isPostEvent={isPostEvent}
+                  isRosterComplete={isRosterComplete}
+                  canRegister={canRegister}
+                  sseConnected={sseConnected}
+                  nextReveal={nextReveal}
+                  lastVisibleMc={lastVisibleMc}
+                  previousVisibleMc={previousVisibleMc}
+                  eventLabel={eventConfig.eventLabel}
+                  shareLineup={shareLineup}
+                />
+              )}
+
+              {view === "ranking" && <RankingView ranking={ranking} />}
+
+              {view === "batallas" && (
+                <BattlesView
+                  battles={battles}
+                  visibleBattles={visibleBattles}
+                  battlesByDate={battlesByDate}
+                  battleDates={battleDates}
+                  battleRounds={battleRounds}
+                  battleFilter={battleFilter}
+                  battleDateFilter={battleDateFilter}
+                  battleRoundFilter={battleRoundFilter}
+                  visibleBattlesCount={visibleBattlesCount}
+                  publishedBattlesCount={publishedBattlesCount}
+                  setBattleFilter={setBattleFilter}
+                  setBattleDateFilter={setBattleDateFilter}
+                  setBattleRoundFilter={setBattleRoundFilter}
+                />
+              )}
             </AnimatePresence>
-
           </div>
-
-          {view === "mcs" && (
-            <McsView
-              mcs={mcs}
-              revealedCount={revealedCount}
-              rosterTotal={rosterTotal}
-              revealPercent={revealPercent}
-              isPreEvent={isPreEvent}
-              isLiveEvent={isLiveEvent}
-              isPostEvent={isPostEvent}
-              isRosterComplete={isRosterComplete}
-              canRegister={canRegister}
-              sseConnected={sseConnected}
-              nextReveal={nextReveal}
-              lastVisibleMc={lastVisibleMc}
-              previousVisibleMc={previousVisibleMc}
-              eventLabel={eventConfig.eventLabel}
-              shareLineup={shareLineup}
-            />
-          )}
-
-          {view === "ranking" && <RankingView ranking={ranking} />}
-
-          {view === "batallas" && (
-            <BattlesView
-              battles={battles}
-              visibleBattles={visibleBattles}
-              battlesByDate={battlesByDate}
-              battleDates={battleDates}
-              battleRounds={battleRounds}
-              battleFilter={battleFilter}
-              battleDateFilter={battleDateFilter}
-              battleRoundFilter={battleRoundFilter}
-              visibleBattlesCount={visibleBattlesCount}
-              publishedBattlesCount={publishedBattlesCount}
-              setBattleFilter={setBattleFilter}
-              setBattleDateFilter={setBattleDateFilter}
-              setBattleRoundFilter={setBattleRoundFilter}
-            />
-          )}
 
           {/* FOOTER */}
           <Footer />
