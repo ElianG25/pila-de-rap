@@ -290,24 +290,29 @@ export default function Home() {
       setMcs(Array.isArray(data.data) ? data.data : []);
 
       setRanking(
-        Array.isArray(data.ranking)
-          ? [...data.ranking].sort((a: RankingMC, b: RankingMC) => {
-            if (b.puntosLiga !== a.puntosLiga) {
-              return b.puntosLiga - a.puntosLiga;
-            }
+  Array.isArray(data.ranking)
+    ? [...data.ranking].sort((a: RankingMC, b: RankingMC) => {
+        if (Number(b.puntosLiga || 0) !== Number(a.puntosLiga || 0)) {
+          return Number(b.puntosLiga || 0) - Number(a.puntosLiga || 0);
+        }
 
-            if (b.victorias !== a.victorias) {
-              return b.victorias - a.victorias;
-            }
+        if (Number(b.victorias || 0) !== Number(a.victorias || 0)) {
+          return Number(b.victorias || 0) - Number(a.victorias || 0);
+        }
 
-            if (b.puntosBatalla !== a.puntosBatalla) {
-              return b.puntosBatalla - a.puntosBatalla;
-            }
+        if (Number(a.derrotas || 0) !== Number(b.derrotas || 0)) {
+          return Number(a.derrotas || 0) - Number(b.derrotas || 0);
+        }
 
-            return a.derrotas - b.derrotas;
-          })
-          : []
-      );
+        if (Number(b.puntosBatalla || 0) !== Number(a.puntosBatalla || 0)) {
+          return Number(b.puntosBatalla || 0) - Number(a.puntosBatalla || 0);
+        }
+
+        return String(a.alias || "").localeCompare(String(b.alias || ""));
+      })
+    : []
+);
+
 
       setBattles(
         Array.isArray(data.battles)
