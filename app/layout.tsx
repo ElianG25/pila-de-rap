@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://piladerap.vercel.app"),
 
   title: {
-    default: "Pila de Ra' | Freestyle RD",
+    default: "Pila de Ra' | Freestyle en RD",
     template: "%s | Pila de Ra'",
   },
 

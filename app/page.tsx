@@ -775,14 +775,14 @@ export default function Home() {
           </div>
 
           {/* 🔥 CONTENIDO */}
-          <div className="w-full max-w-4xl mx-auto overflow-x-clip">
+          <div className="w-full overflow-x-clip">
             <AnimatePresence mode="wait">
+
               {view === "evento" && (
                 <EventView
                   jueces={jueces}
                   events={events}
                   eventConfig={eventConfig}
-                  eventPhase={eventPhase}
                   canRegister={canRegister}
                   isFull={isFull}
                   isPreEvent={isPreEvent}
@@ -819,7 +819,9 @@ export default function Home() {
                 />
               )}
 
-              {view === "ranking" && <RankingView ranking={ranking} />}
+              {view === "ranking" && (
+                <RankingView ranking={ranking} />
+              )}
 
               {view === "batallas" && (
                 <BattlesView
@@ -838,6 +840,7 @@ export default function Home() {
                   setBattleRoundFilter={setBattleRoundFilter}
                 />
               )}
+
             </AnimatePresence>
           </div>
 
