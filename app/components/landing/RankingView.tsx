@@ -156,7 +156,7 @@ export default function RankingView({ ranking }: RankingViewProps) {
 
                         <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/35">
                             <div className="grid
-grid-cols-[34px_minmax(0,1fr)_50px_44px_30px_30px_30px]
+grid-cols-[30px_minmax(96px,1fr)_42px_38px_26px_26px_26px]
 md:grid-cols-[60px_minmax(0,2fr)_110px_90px_70px_70px_70px] gap-2 border-b border-white/10 bg-white/[0.03] px-3 py-3 text-[9px] md:text-[11px] font-black uppercase tracking-[0.18em] text-gray-500">
                                 <span>#</span>
                                 <span>MC</span>
@@ -174,7 +174,7 @@ md:grid-cols-[60px_minmax(0,2fr)_110px_90px_70px_70px_70px] gap-2 border-b borde
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: Math.min(index * 0.02, 0.2) }}
                                     className={`grid
-grid-cols-[34px_minmax(0,1fr)_50px_44px_30px_30px_30px]
+grid-cols-[30px_minmax(96px,1fr)_42px_38px_26px_26px_26px]
 md:grid-cols-[60px_minmax(0,2fr)_110px_90px_70px_70px_70px] gap-2 border-b border-white/5 px-3 py-3 last:border-b-0 ${index === 0
                                             ? "bg-yellow-400/10"
                                             : "bg-black/20 hover:bg-white/[0.03]"
