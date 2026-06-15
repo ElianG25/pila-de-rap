@@ -58,7 +58,7 @@ export default function Home() {
 
   const jueces = [
     { nombre: "H-OFER", ig: "mchoferrap" },
-    { nombre: "GERALDO", ig: "geraldbatista_" },
+    { nombre: "DRACO", ig: "dracorsd_oficiall" },
     { nombre: "JAVIER", ig: "javierreynoso20" },
   ];
 
@@ -83,9 +83,9 @@ export default function Home() {
     registrationOpen: true,
     currentRound: "Inscripciones",
     youtubeLiveUrl: "",
-    eventDate: "2026-05-30T15:00:00-04:00",
-    eventLabel: "FECHA 1 | 30 de mayo",
-    activeEventLabel: "FECHA 1",
+    eventDate: "2026-06-14T15:00:00-04:00",
+    eventLabel: "FECHA 2 | 14 de junio",
+    activeEventLabel: "FECHA 2",
     champion: "",
     runnerUp: "",
     eventSummary: "",
@@ -274,8 +274,8 @@ export default function Home() {
         currentRound: config?.currentRound || "Inscripciones",
         youtubeLiveUrl: config?.youtubeLiveUrl || "",
         eventDate: config?.eventDate || "2026-05-30T15:00:00-04:00",
-        eventLabel: config?.eventLabel || "FECHA 1 | 30 de mayo",
-        activeEventLabel: config?.activeEventLabel || config?.eventLabel || "FECHA 1",
+        eventLabel: config?.eventLabel || "FECHA 2 | 14 de junio",
+        activeEventLabel: config?.activeEventLabel || config?.eventLabel || "FECHA 2",
         champion: config?.champion || "",
         runnerUp: config?.runnerUp || "",
         eventSummary: config?.eventSummary || "",
