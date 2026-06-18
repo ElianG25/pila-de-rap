@@ -1,0 +1,90 @@
+export type EventStatus =
+  | "futura"
+  | "anunciada"
+  | "inscripciones"
+  | "en_vivo"
+  | "finalizada"
+  | "oculta";
+
+export type LeagueEvent = {
+  eventId: string;
+  numero: number;
+  titulo: string;
+  label: string;
+  estado: EventStatus;
+  fechaEvento: string;
+  horaEvento: string;
+  ubicacion: string;
+  maxCupos: number;
+  campeon: string;
+  subcampeon: string;
+  mvp: string;
+  resumen: string;
+  youtubePlaylist: string;
+  inscripcionesAbiertas: boolean;
+  visible: boolean;
+  orden: number;
+};
+
+export type RankingItem = {
+  alias: string;
+  puntosLiga: number;
+  puntosBatalla: number;
+  victorias: number;
+  derrotas: number;
+  replicas: number;
+  bonus: number;
+  estado: string;
+  ultimaFecha: string;
+  movimiento: string;
+};
+
+export type Battle = {
+  battleId: string;
+  eventId: string;
+  orden: number;
+  ronda: string;
+  grupo: string;
+  mc1: string;
+  mc2: string;
+  mc3: string;
+  mc4: string;
+  ganador: string;
+  perdedor: string;
+  youtubeUrl: string;
+  estado: string;
+  tipoResultado: string;
+  cuentaParaLiga: boolean;
+  puntosMc1: number;
+  puntosMc2: number;
+  notas: string;
+};
+
+export type Registration = {
+  createdAt: string;
+  eventId: string;
+  nombre: string;
+  alias: string;
+  telefono: string;
+  instagram: string;
+  estado: string;
+  source: string;
+};
+
+export type LeaguePayload = {
+  config: Record<string, string>;
+  activeEvent: LeagueEvent | null;
+  featuredEvent: LeagueEvent | null;
+  latestCompletedEvent: LeagueEvent | null;
+  events: LeagueEvent[];
+  registrations: Registration[];
+  participants: unknown[];
+  ranking: RankingItem[];
+  battles: Battle[];
+  media: unknown[];
+  capacity: {
+    total: number;
+    restantes: number;
+    max: number;
+  };
+};
