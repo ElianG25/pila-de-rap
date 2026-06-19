@@ -1,883 +1,563 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
+import type { LeaguePayload } from "@/app/lib/league/types";
+import { fetchLeague } from "@/app/lib/league/api";
 import {
-  TOTAL_MCS,
-  type Battle,
-  type EventConfig,
-  type EventPhase,
-  type LeagueEvent,
-  type Mc,
-  type RankingMC,
-  type View,
-} from "./lib/landing/types";
+  getPublicEvents,
+  getPublishedBattles,
+  sortRanking,
+} from "@/app/lib/league/helpers";
+import { LeagueHero }        from "@/app/components/league/LeagueHero";
+import { EventTimeline }     from "@/app/components/league/EventTimeline";
+import { CompactRanking }    from "@/app/components/league/CompactRanking";
+import { LatestResults }     from "@/app/components/league/LatestResults";
+import { BattleArchive }     from "@/app/components/league/BattleArchive";
+import { RegistrationCard }  from "@/app/components/league/RegistrationCard";
+import { SeasonStats }       from "@/app/components/league/SeasonStats";
 
-import {
-  cardBase,
-  eyebrow,
-  fadeUp,
-  goldSoftCard,
-  mutedEyebrow,
-  sectionDescription,
-  sectionDivider,
-  sectionGlow,
-  sectionTitle,
-  softCard,
-  statCard,
-} from "./lib/landing/styles";
+type Section = "inicio" | "ranking" | "fechas" | "batallas" | "inscripcion";
+const SECTION_ORDER: Section[] = ["inicio","ranking","fechas","batallas","inscripcion"];
+const SECTIONS: { id: Section; label: string }[] = [
+  { id: "inicio",      label: "Inicio"   },
+  { id: "ranking",     label: "Ranking"  },
+  { id: "fechas",      label: "Fechas"   },
+  { id: "batallas",    label: "Batallas" },
+  { id: "inscripcion", label: "Unirse"   },
+];
+const BG_VIDEO_ID = "jw-aW3a7pSM";
 
-import {
-  getRankingStatusClass,
-  getYoutubeThumbnailUrl,
-  isTruthyConfig,
-} from "./lib/landing/helpers";
+function parseEventDate(fechaEvento: string, horaEvento: string): Date | null {
+  if (!fechaEvento) return null;
+  try {
+    const base = fechaEvento.includes("T") ? fechaEvento : fechaEvento + "T00:00:00";
+    const d = new Date(base);
+    if (isNaN(d.getTime())) return null;
+    if (horaEvento && /^\d{1,2}:\d{2}/.test(horaEvento)) {
+      const [h, m] = horaEvento.split(":").map(Number);
+      d.setHours(h, m, 0, 0);
+    }
+    return d;
+  } catch { return null; }
+}
 
-import RegisterModal from "./components/landing/RegisterModal";
+function getHeroBadge(league: LeaguePayload): string {
+  const ev = league.featuredEvent;
+  if (!ev) return "Próxima fecha";
+  if (ev.estado === "en_vivo")       return "En vivo ahora";
+  if (ev.estado === "finalizada")    return "Fecha finalizada";
+  if (ev.estado === "inscripciones") return "Inscripciones abiertas";
+  if (ev.estado === "anunciada")     return ev.titulo || "Fecha confirmada";
+  return "Próxima fecha";
+}
 
-import SuccessToast from "./components/landing/SuccessToast";
-import Footer from "./components/landing/Footer";
-import RankingView from "./components/landing/RankingView";
-import EventView from "./components/landing/EventView";
-import McsView from "./components/landing/McsView";
-import BattlesView from "./components/landing/BattlesView";
-import HeroHeader from "./components/landing/HeroHeader";
+function getHeroSlogan(league: LeaguePayload): string {
+  return league.config?.brandSlogan || "Vamo' a prender la plaza";
+}
+
+/** Leer seccion inicial desde URL: ?s=ranking */
+function getInitialSection(): Section {
+  if (typeof window === "undefined") return "inicio";
+  const s = new URLSearchParams(window.location.search).get("s");
+  return (SECTION_ORDER.includes(s as Section) ? s : "inicio") as Section;
+}
+
+function NavIcon({ id }: { id: Section }) {
+  const cls = "h-5 w-5";
+  if (id === "inicio") return (
+    <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m3 12 2-2m0 0 7-7 7 7M5 10v10a1 1 0 0 0 1 1h3m10-11 2 2m-2-2v10a1 1 0 0 1-1 1h-3m-6 0a1 1 0 0 0 1-1v-4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v4a1 1 0 0 0 1 1m-6 0h6" />
+    </svg>
+  );
+  if (id === "ranking") return (
+    <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+    </svg>
+  );
+  if (id === "fechas") return (
+    <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+    </svg>
+  );
+  if (id === "batallas") return (
+    <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 0 1 0 .656l-5.603 3.113a.375.375 0 0 1-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112Z" />
+    </svg>
+  );
+  return (
+    <svg className={cls} fill="none" stroke="currentColor" strokeWidth={1.8} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+    </svg>
+  );
+}
+
+function TypewriterText({ text, delay = 0 }: { text: string; delay?: number }) {
+  return (
+    <>
+      {text.split("").map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.22, delay: delay + i * 0.038 }}
+          style={{ display: "inline-block" }}
+        >
+          {char === " " ? " " : char}
+        </motion.span>
+      ))}
+    </>
+  );
+}
+
+/** prefers-reduced-motion sin setState dentro de un efecto (evita renders en cascada) */
+const RM_QUERY = "(prefers-reduced-motion: reduce)";
+function subscribeReducedMotion(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia(RM_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function getReducedMotionSnapshot() {
+  return typeof window !== "undefined" && window.matchMedia(RM_QUERY).matches;
+}
+function useReducedMotion() {
+  return useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot, () => false);
+}
+
+/** Solo cargamos el video de fondo en pantallas grandes (datos/batería en móvil). */
+const DESKTOP_QUERY = "(min-width: 768px)";
+function subscribeDesktop(cb: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function getDesktopSnapshot() {
+  return typeof window !== "undefined" && window.matchMedia(DESKTOP_QUERY).matches;
+}
+function useIsDesktop() {
+  return useSyncExternalStore(subscribeDesktop, getDesktopSnapshot, () => false);
+}
+
+const pageVariants = {
+  enter:  (dir: number) => ({ x: dir >= 0 ?  56 : -56, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit:   (dir: number) => ({ x: dir >= 0 ? -56 :  56, opacity: 0 }),
+};
+const pageTrans = {
+  duration: 0.26,
+  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+};
 
 export default function Home() {
-  const [loading, setLoading] = useState(true);
+  const [league,     setLeague]     = useState<LeaguePayload | null>(null);
+  const [section,    setSection]    = useState<Section>(getInitialSection);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState("");
+  const [direction,  setDirection]  = useState(0);
+  const [timeLeft,   setTimeLeft]   = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const [refreshing, setRefreshing] = useState(false);
+  const [scrollY, setScrollY]       = useState(0);
+  const touchStartX = useRef(0);
 
-  const [view, setView] = useState<View>("evento");
+  const reducedMotion = useReducedMotion();
+  const isDesktop = useIsDesktop();
 
-  const [timeLeft, setTimeLeft] = useState({
-    d: 0,
-    h: 0,
-    m: 0,
-    s: 0,
-  });
-
-  const jueces = [
-    { nombre: "H-OFER", ig: "mchoferrap" },
-    { nombre: "DRACO", ig: "dracorsd_oficiall" },
-    { nombre: "JAVIER", ig: "javierreynoso20" },
-  ];
-
-  const [open, setOpen] = useState(false);
-
-  const [sending, setSending] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const [slots, setSlots] = useState<number | null>(null);
-
-  // 🔥 MCs
-  const [mcs, setMcs] = useState<Mc[]>([]);
-
-  const [serverOffset, setServerOffset] = useState(0);
-  const [nextRevealAt, setNextRevealAt] = useState<number | null>(null);
-  const [sseConnected, setSseConnected] = useState(false);
-
-  const [eventPhase, setEventPhase] =
-    useState<EventPhase>("pre_event");
-
-  const [eventConfig, setEventConfig] = useState<EventConfig>({
-    registrationOpen: true,
-    currentRound: "Inscripciones",
-    youtubeLiveUrl: "",
-    eventDate: "2026-06-14T15:00:00-04:00",
-    eventLabel: "FECHA 2 | 14 de junio",
-    activeEventLabel: "FECHA 2",
-    champion: "",
-    runnerUp: "",
-    eventSummary: "",
-    nextEventLabel: "",
-    nextEventDate: "",
-    showRanking: true,
-    showBattles: true,
-    showRoster: true,
-  });
-
-  // ✅ Derivados
-  const isFull = slots !== null && slots <= 0;
-  const isPreEvent = eventPhase === "pre_event";
-  const isLiveEvent = eventPhase === "live_event";
-  const isPostEvent = eventPhase === "post_event";
-
-  const canRegister =
-    isPreEvent &&
-    eventConfig.registrationOpen &&
-    !isFull;
-
-  const [ranking, setRanking] = useState<RankingMC[]>([]);
-
-  const [battles, setBattles] = useState<Battle[]>([]);
-  const [events, setEvents] = useState<LeagueEvent[]>([]);
-  const [battleFilter, setBattleFilter] = useState<
-    "todas" | "publicada" | "pendiente" | "en_vivo"
-  >("todas");
-
-  const [battleDateFilter, setBattleDateFilter] = useState("todas");
-  const [battleRoundFilter, setBattleRoundFilter] = useState("todas");
-
-  const battleDates = useMemo(
-    () =>
-      Array.from(
-        new Set(battles.map((battle) => battle.fecha).filter(Boolean))
-      ),
-    [battles]
-  );
-
-  const battleRounds = useMemo(
-    () =>
-      Array.from(
-        new Set(battles.map((battle) => battle.ronda).filter(Boolean))
-      ),
-    [battles]
-  );
-
-  const visibleBattles = useMemo(() => {
-    return battles.filter((battle) => {
-      const status = battle.estado?.toLowerCase();
-
-      if (status === "oculta") return false;
-
-      if (battleDateFilter !== "todas" && battle.fecha !== battleDateFilter) {
-        return false;
-      }
-
-      if (battleRoundFilter !== "todas" && battle.ronda !== battleRoundFilter) {
-        return false;
-      }
-
-      if (battleFilter === "todas") return true;
-
-      return status === battleFilter;
-    });
-  }, [battles, battleDateFilter, battleRoundFilter, battleFilter]);
-
-  const battlesByDate = useMemo(() => {
-    return visibleBattles.reduce<Record<string, Battle[]>>((groups, battle) => {
-      const key = battle.fecha || eventConfig.eventLabel;
-
-      if (!groups[key]) {
-        groups[key] = [];
-      }
-
-      groups[key].push(battle);
-
-      return groups;
-    }, {});
-  }, [visibleBattles, eventConfig.eventLabel]);
-
-  const publishedBattlesCount = useMemo(
-    () =>
-      battles.filter(
-        (battle) =>
-          battle.estado?.toLowerCase() === "publicada" &&
-          battle.youtubeUrl
-      ).length,
-    [battles]
-  );
-
-  const visibleBattlesCount = useMemo(
-    () =>
-      battles.filter(
-        (battle) => battle.estado?.toLowerCase() !== "oculta"
-      ).length,
-    [battles]
-  );
-
-  // 🔁 Persistencia de vista (MEJORADO)
+  // Parallax scroll
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (reducedMotion) return;
+    const onScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [reducedMotion]);
 
-    const saved = localStorage.getItem("view");
-    if (
-      saved === "evento" ||
-      saved === "mcs" ||
-      saved === "ranking" ||
-      saved === "batallas"
-    ) {
-      setView(saved);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("view", view);
-  }, [view]);
-
-  useEffect(() => {
-    if (view === "mcs" && !eventConfig.showRoster) {
-      setView("evento");
-    }
-
-    if (view === "ranking" && !eventConfig.showRanking) {
-      setView("evento");
-    }
-
-    if (view === "batallas" && !eventConfig.showBattles) {
-      setView("evento");
-    }
-  }, [
-    view,
-    eventConfig.showRoster,
-    eventConfig.showRanking,
-    eventConfig.showBattles,
-  ]);
-
-  // ⏳ Próximo reveal
-  const [nextReveal, setNextReveal] = useState({
-    h: 0,
-    m: 0,
-    s: 0,
-  });
-
-  const syncedNow = useCallback(() => Date.now() + serverOffset, [serverOffset]);
-
-  const getNextRevealDate = useCallback(() => {
-    if (nextRevealAt) return new Date(nextRevealAt);
-
-    const now = new Date(syncedNow());
-    const next = new Date(now);
-
-    // 7:00 PM República Dominicana = 23:00 UTC.
-    next.setUTCHours(23, 0, 0, 0);
-
-    if (now.getTime() >= next.getTime()) {
-      next.setUTCDate(next.getUTCDate() + 1);
-    }
-
-    return next;
-  }, [nextRevealAt, syncedNow]);
-
-  // 🎤 Fetch DATA
-  const fetchData = useCallback(async () => {
-    try {
-      const res = await fetch("/api/mcs", {
-        cache: "no-store",
-      });
-
-      if (!res.ok) throw new Error("Error fetching data");
-
-      const data = await res.json();
-
-      const config = data.config;
-
-      setEventPhase(
-        config?.phase === "live_event" || config?.phase === "post_event"
-          ? config.phase
-          : "pre_event"
-      );
-
-      setEventConfig({
-        registrationOpen: isTruthyConfig(config?.registrationOpen),
-        currentRound: config?.currentRound || "Inscripciones",
-        youtubeLiveUrl: config?.youtubeLiveUrl || "",
-        eventDate: config?.eventDate || "2026-05-30T15:00:00-04:00",
-        eventLabel: config?.eventLabel || "FECHA 2 | 14 de junio",
-        activeEventLabel: config?.activeEventLabel || config?.eventLabel || "FECHA 2",
-        champion: config?.champion || "",
-        runnerUp: config?.runnerUp || "",
-        eventSummary: config?.eventSummary || "",
-        nextEventLabel: config?.nextEventLabel || "",
-        nextEventDate: config?.nextEventDate || "",
-        showRanking: isTruthyConfig(config?.showRanking ?? "true"),
-        showBattles: isTruthyConfig(config?.showBattles ?? "true"),
-        showRoster: isTruthyConfig(config?.showRoster ?? "true"),
-      });
-
-      // ✅ MCs
-      setMcs(Array.isArray(data.data) ? data.data : []);
-
-      setRanking(
-  Array.isArray(data.ranking)
-    ? [...data.ranking].sort((a: RankingMC, b: RankingMC) => {
-        if (Number(b.puntosLiga || 0) !== Number(a.puntosLiga || 0)) {
-          return Number(b.puntosLiga || 0) - Number(a.puntosLiga || 0);
-        }
-
-        if (Number(b.victorias || 0) !== Number(a.victorias || 0)) {
-          return Number(b.victorias || 0) - Number(a.victorias || 0);
-        }
-
-        if (Number(a.derrotas || 0) !== Number(b.derrotas || 0)) {
-          return Number(a.derrotas || 0) - Number(b.derrotas || 0);
-        }
-
-        if (Number(b.puntosBatalla || 0) !== Number(a.puntosBatalla || 0)) {
-          return Number(b.puntosBatalla || 0) - Number(a.puntosBatalla || 0);
-        }
-
-        return String(a.alias || "").localeCompare(String(b.alias || ""));
-      })
-    : []
-);
-
-
-      setBattles(
-        Array.isArray(data.battles)
-          ? data.battles
-          : []
-      );
-
-      setEvents(Array.isArray(data.events) ? data.events : []);
-
-      if (typeof data.serverTime === "number") {
-        setServerOffset(data.serverTime - Date.now());
-      }
-
-      setNextRevealAt(
-        typeof data.nextRevealAt === "number" ? data.nextRevealAt : null
-      );
-
-      // ✅ Slots robusto
-      const rawSlots = data.restantes;
-      let parsedSlots: number | null = null;
-
-      if (typeof rawSlots === "number") {
-        parsedSlots = rawSlots;
-      } else if (typeof rawSlots === "string") {
-        const n = Number(rawSlots);
-        parsedSlots = Number.isNaN(n) ? null : n;
-      }
-
-      setSlots(parsedSlots);
-    } catch (err) {
-      console.error("Error cargando datos:", err);
-      setMcs([]);
-      setRanking([]);
-      setBattles([]);
-      setEvents([]);
-      setSlots(null);
-    }
-  }, []);
-
-  // 🔁 Carga inicial + refresco periódico para que se revelen sin recargar la página
   useEffect(() => {
     let mounted = true;
+    fetchLeague()
+      .then((data) => { if (mounted) { setLeague(data); setLoading(false); } })
+      .catch((err)  => { if (mounted) { setError(err instanceof Error ? err.message : "Error desconocido"); setLoading(false); } });
+    return () => { mounted = false; };
+  }, []);
 
-    const load = async () => {
-      await fetchData();
-      if (mounted) setLoading(false);
-    };
-
-    load();
-
-    const interval = setInterval(fetchData, 60 * 1000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [fetchData]);
-
-  // 🔴 Tiempo real vía Server-Sent Events: sincroniza reloj, hype y refresca al reveal.
+  // Auto-refresh
   useEffect(() => {
-    if (typeof window === "undefined" || !("EventSource" in window)) return;
+    if (loading || error) return;
+    const isLive = league?.featuredEvent?.estado === "en_vivo";
+    const ms = isLive ? 30_000 : 120_000;
+    const id = setInterval(async () => {
+      setRefreshing(true);
+      try { const data = await fetchLeague(); setLeague(data); }
+      catch { /* silent */ }
+      finally { setRefreshing(false); }
+    }, ms);
+    return () => clearInterval(id);
+  }, [loading, error, league?.featuredEvent?.estado]);
 
-    const source = new EventSource("/api/realtime");
-
-    source.addEventListener("open", () => setSseConnected(true));
-
-    source.addEventListener("tick", (event) => {
-      try {
-        const payload = JSON.parse((event as MessageEvent).data);
-
-        if (typeof payload.serverTime === "number") {
-          setServerOffset(payload.serverTime - Date.now());
-        }
-
-        setNextRevealAt(
-          typeof payload.nextRevealAt === "number" ? payload.nextRevealAt : null
-        );
-
-        if (typeof payload.nextRevealAt === "number") {
-          const diff = payload.nextRevealAt - payload.serverTime;
-          if (diff <= 1500) fetchData();
-        }
-      } catch (error) {
-        console.error("Realtime payload inválido:", error);
-      }
-    });
-
-    source.addEventListener("error", () => {
-      setSseConnected(false);
-    });
-
-    return () => {
-      source.close();
-      setSseConnected(false);
-    };
-  }, [fetchData]);
-
-  // ⏳ Próxima revelación
+  // Countdown
   useEffect(() => {
-    const updateNextReveal = () => {
-      const visibleNow = mcs.filter((mc) => mc.visible).length;
-      const rosterComplete = visibleNow >= TOTAL_MCS;
-
-      if (rosterComplete) {
-        setNextReveal({ h: 0, m: 0, s: 0 });
-        return;
-      }
-
-      const diff = Math.max(0, getNextRevealDate().getTime() - syncedNow());
-
-      setNextReveal({
-        h: Math.floor((diff / (1000 * 60 * 60)) % 24),
-        m: Math.floor((diff / (1000 * 60)) % 60),
-        s: Math.floor((diff / 1000) % 60),
-      });
-
-      if (diff <= 1000) {
-        fetchData();
-      }
-    };
-
-    updateNextReveal();
-
-    const interval = setInterval(updateNextReveal, 1000);
-
-    return () => clearInterval(interval);
-  }, [fetchData, getNextRevealDate, syncedNow, mcs]);
-
-  // ⏳ Countdown evento
-  useEffect(() => {
-    if (!eventConfig.eventDate || !isPreEvent) {
-      setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
-      return;
+    if (!league) return;
+    const ev = league.featuredEvent;
+    const reset = () => setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
+    if (!ev || ev.estado === "finalizada" || ev.estado === "en_vivo" || ev.estado === "futura") {
+      const raf = requestAnimationFrame(reset);
+      return () => cancelAnimationFrame(raf);
     }
-
-    const targetDate = new Date(eventConfig.eventDate);
-
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = targetDate.getTime() - now.getTime();
-
-      if (diff <= 0) {
-        setTimeLeft({ d: 0, h: 0, m: 0, s: 0 });
-        return;
-      }
-
+    const target = parseEventDate(ev.fechaEvento, ev.horaEvento);
+    if (!target) {
+      const raf = requestAnimationFrame(reset);
+      return () => cancelAnimationFrame(raf);
+    }
+    const tick = () => {
+      const diff = target.getTime() - Date.now();
+      if (diff <= 0) { reset(); return; }
       setTimeLeft({
-        d: Math.floor(diff / (1000 * 60 * 60 * 24)),
-        h: Math.floor((diff / (1000 * 60 * 60)) % 24),
-        m: Math.floor((diff / (1000 * 60)) % 60),
-        s: Math.floor((diff / 1000) % 60),
+        d: Math.floor(diff / 86400000),
+        h: Math.floor((diff / 3600000) % 24),
+        m: Math.floor((diff / 60000)   % 60),
+        s: Math.floor((diff / 1000)    % 60),
       });
     };
+    const raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, 1000);
+    return () => { cancelAnimationFrame(raf); clearInterval(id); };
+  }, [league]);
 
-    updateCountdown();
+  const ranking = useMemo(() => sortRanking(league?.ranking ?? []),        [league?.ranking]);
+  const events  = useMemo(() => getPublicEvents(league?.events ?? []),      [league?.events]);
+  const battles = useMemo(() => getPublishedBattles(league?.battles ?? []), [league?.battles]);
 
-    const interval = setInterval(updateCountdown, 1000);
+  const bgVideoId    = (league?.config as Record<string, string>)?.backgroundVideoId ?? BG_VIDEO_ID;
+  const instagramUrl = league?.config?.instagramUrl ?? "";
+  const isLive       = league?.featuredEvent?.estado === "en_vivo";
 
-    return () => clearInterval(interval);
-  }, [eventConfig.eventDate, isPreEvent]);
+  const showCountdown = (() => {
+    const ev = league?.featuredEvent;
+    if (!ev) return false;
+    if (["finalizada", "en_vivo", "futura"].includes(ev.estado)) return false;
+    return Boolean(ev.fechaEvento);
+  })();
 
-  const visibleMcs = useMemo(() => mcs.filter((mc) => mc.visible), [mcs]);
-  const revealedCount = visibleMcs.length;
-  const rosterTotal = Math.max(mcs.length || TOTAL_MCS, TOTAL_MCS);
-  const isRosterComplete = revealedCount >= TOTAL_MCS;
+  const activeIndex = SECTIONS.findIndex((s) => s.id === section);
 
-  const revealPercent = Math.min(
-    100,
-    Math.round((revealedCount / rosterTotal) * 100)
-  );
+  function navigate(to: Section) {
+    const fromIdx = SECTION_ORDER.indexOf(section);
+    const toIdx   = SECTION_ORDER.indexOf(to);
+    setDirection(toIdx >= fromIdx ? 1 : -1);
+    setSection(to);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Sync URL
+    const url = to === "inicio" ? "/" : `/?s=${to}`;
+    window.history.replaceState(null, "", url);
+  }
 
-  const lastVisibleMc = visibleMcs[visibleMcs.length - 1];
-  const previousVisibleMc = visibleMcs[visibleMcs.length - 2];
-
-  const podium = ranking.slice(0, 3);
-
-  const championAlias =
-    eventConfig.champion || podium[0]?.alias || "";
-
-  const runnerUpAlias =
-    eventConfig.runnerUp || podium[1]?.alias || "";
-
-  const tabs = [
-    { key: "evento", label: "📅 Evento", visible: true },
-    { key: "mcs", label: "🎤 MCs", visible: eventConfig.showRoster },
-    { key: "ranking", label: "🏆 Rank", visible: eventConfig.showRanking },
-    { key: "batallas", label: "⚔️ Videos", visible: eventConfig.showBattles },
-  ] as const;
-
-  const visibleTabs = tabs.filter((tab) => tab.visible);
-  const activeTabIndex = Math.max(
-    0,
-    visibleTabs.findIndex((tab) => tab.key === view)
-  );
-
-  const thirdPlaceAlias =
-    podium[2]?.alias || "";
-
-  const heroBadge = isLiveEvent
-    ? "Evento en vivo"
-    : isPostEvent
-      ? "Fecha finalizada"
-      : canRegister
-        ? "Inscripciones abiertas"
-        : "Próxima fecha";
-
-  const heroTitle = isLiveEvent
-    ? "La plaza está encendida"
-    : isPostEvent
-      ? "Resultados oficiales"
-      : "Pila de Ra'";
-
-  const heroSubtitle = isLiveEvent
-    ? `Estamos en ${eventConfig.currentRound}. Sigue el ranking y las batallas oficiales.`
-    : isPostEvent
-      ? `Consulta los resultados de ${eventConfig.eventLabel}, ranking y batallas publicadas.`
-      : canRegister
-        ? "Inscríbete y forma parte de la próxima jornada de freestyle."
-        : eventConfig.nextEventLabel
-          ? `Próxima jornada: ${eventConfig.nextEventLabel}.`
-          : "La liga sigue activa. Mantente atento a las próximas fechas.";
-
-  const shareLineup = useCallback(async () => {
-    const baseUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://pila-de-rap.vercel.app";
-
-    const pageUrl = baseUrl;
-    const imageUrl = `${baseUrl}/api/share`;
-    const text = isRosterComplete
-      ? `🔥 Pila de Ra': lineup oficial completo. ${eventConfig.eventLabel}, 3:00 PM RD.`
-      : `🔥 Pila de Ra': ${revealedCount}/32 MCs revelados. ${eventConfig.eventLabel}, 3:00 PM RD.`;
-
-    try {
-      const imageResponse = await fetch(imageUrl, { cache: "no-store" });
-
-      if (!imageResponse.ok) {
-        throw new Error("No se pudo generar la imagen para compartir");
-      }
-
-      const contentType = imageResponse.headers.get("content-type") || "";
-
-      if (!contentType.includes("image")) {
-        throw new Error("La respuesta no es una imagen válida");
-      }
-
-      const blob = await imageResponse.blob();
-      const file = new File([blob], "pila-de-rap-lineup.png", {
-        type: "image/png",
-      });
-
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          title: isRosterComplete
-            ? "Pila de Ra' - Lineup completo"
-            : "Pila de Ra' - MCs revelados",
-          text,
-          files: [file],
-        });
-        return;
-      }
-
-      if (navigator.share) {
-        await navigator.share({
-          title: isRosterComplete
-            ? "Pila de Ra' - Lineup completo"
-            : "Pila de Ra' - MCs revelados",
-          text,
-          url: imageUrl,
-        });
-        return;
-      }
-
-      window.open(imageUrl, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      console.error("No se pudo compartir:", error);
-
-      try {
-        await navigator.clipboard.writeText(`${text} ${pageUrl}`);
-        alert("No se pudo abrir el menú de compartir, pero copiamos el link 🔥");
-      } catch {
-        window.open(pageUrl, "_blank", "noopener,noreferrer");
-      }
+  function navigateDir(dir: 1 | -1) {
+    const cur = SECTION_ORDER.indexOf(section);
+    const next = cur + dir;
+    if (next >= 0 && next < SECTION_ORDER.length) {
+      navigate(SECTION_ORDER[next]);
     }
-  }, [revealedCount, eventConfig.eventLabel, isRosterComplete]);
+  }
 
-  // 🔥 Skeleton loading elegante
+  // Touch swipe handlers
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 55) navigateDir(diff > 0 ? 1 : -1);
+  }
+
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black text-white flex items-center justify-center z-50 px-5">
-        <div className="w-full max-w-md rounded-3xl border border-yellow-400/15 bg-white/[0.03] p-5 shadow-2xl">
-          <div className="flex items-center gap-3 mb-6">
-            <Image
-              src="/logo.png"
-              alt="Pila de Ra'"
-              width={52}
-              height={52}
-              className="h-12 w-auto object-contain"
-            />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-2/3 rounded-full bg-yellow-400/10 animate-pulse" />
-              <div className="h-3 w-1/2 rounded-full bg-white/10 animate-pulse" />
+      <div className="min-h-[100svh] bg-black px-4 sm:px-6" aria-busy="true" aria-label="Cargando la liga">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="flex items-center justify-between pt-5 pb-2">
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="Pila de Ra'" width={44} height={44} priority
+                className="h-9 w-auto opacity-80 drop-shadow-[0_0_22px_rgba(250,204,21,0.35)]" />
+              <div className="space-y-2"><div className="skeleton h-3 w-24" /><div className="skeleton h-2 w-16" /></div>
             </div>
+            <div className="skeleton hidden h-7 w-32 rounded-full sm:block" />
           </div>
-
-          <div className="h-44 rounded-3xl bg-gradient-to-br from-yellow-400/20 via-white/5 to-transparent animate-pulse" />
-
-          <div className="grid grid-cols-4 gap-2 mt-5">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-11 rounded-xl bg-white/10 animate-pulse"
-                style={{ animationDelay: `${i * 70}ms` }}
-              />
-            ))}
+          <div className="flex flex-col items-center gap-4 py-14">
+            <div className="skeleton h-3 w-44 rounded-full" />
+            <div className="skeleton h-16 w-64 sm:h-24 sm:w-[28rem]" />
+            <div className="skeleton h-7 w-40 rounded-full" />
           </div>
-
-          <p className="mt-5 text-center text-yellow-400 text-xs tracking-[0.3em] animate-pulse">
-            CARGANDO PILA DE RA'
-          </p>
+          <div className="grid gap-6 md:grid-cols-2">
+            {[0, 1].map((i) => <div key={i} className="skeleton h-64" />)}
+          </div>
         </div>
       </div>
     );
   }
 
+  if (error || !league) {
+    return (
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-50 px-6">
+        <Image src="/logo.png" alt="Pila de Ra'" width={48} height={48} className="h-12 w-auto mb-6 opacity-40" />
+        <p className="kicker text-[10px] text-yellow-400 mb-3">Error</p>
+        <p className="font-display text-xl font-bold uppercase text-white mb-2">No se pudo cargar</p>
+        <p className="text-sm text-zinc-500 mb-8 text-center max-w-xs">{error || "La información de la liga no está disponible."}</p>
+        <button onClick={() => window.location.reload()}
+          className="btn-gold rounded-xl px-6 py-2.5 text-sm">
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  const heroBadge = getHeroBadge(league);
+  const slogan    = getHeroSlogan(league);
+
   return (
+    <main
+      className="relative min-h-[100svh] overflow-x-clip bg-black text-white pb-16 sm:pb-0"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* REFRESH BANNER */}
+      <AnimatePresence>
+        {refreshing && (
+          <motion.div
+            initial={{ y: -32, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -32, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 bg-yellow-400/90 backdrop-blur-sm py-2 text-[10px] font-display font-semibold uppercase tracking-[0.3em] text-black"
+          >
+            <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+              className="inline-block h-3 w-3 rounded-full border-2 border-black/30 border-t-black" />
+            Actualizando datos
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-    <main className="relative min-h-[100svh] overflow-x-clip bg-black text-white touch-pan-y">
-
-      {/* 🎥 VIDEO BACKGROUND */}
-      <div className="fixed inset-0 overflow-hidden z-0">
-
-        {/* VIDEO */}
-        <iframe
-          loading="lazy"
-          referrerPolicy="strict-origin-when-cross-origin"
-          className="
-        absolute
-        top-1/2
-        left-1/2
-        w-[177.77vh]
-        h-[100vh]
-        min-w-[100vw]
-        min-h-[56.25vw]
-        -translate-x-1/2
-        -translate-y-1/2
-        scale-110
-        opacity-40
-        pointer-events-none
-      "
-          src="https://www.youtube.com/embed/jw-aW3a7pSM?autoplay=1&mute=1&loop=1&playlist=jw-aW3a7pSM&controls=0&modestbranding=1"
-          title="Background video"
-          allow="autoplay"
-          allowFullScreen
+      {/* FONDO — póster en móvil; video de YouTube solo en desktop */}
+      <div
+        className="fixed inset-0 z-0 pointer-events-none select-none overflow-hidden"
+        style={{ transform: reducedMotion ? "none" : `translateY(${Math.min(scrollY * 0.12, 90)}px)` }}
+      >
+        {/* Póster base: cubre siempre, evita franjas negras y sirve a móvil sin iframe */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/map-preview.jpg')", opacity: 0.45 }}
         />
-
-        {/* DARK OVERLAY */}
-        <div className="absolute inset-0 bg-black/70" />
-
-        {/* NOISE */}
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.06] mix-blend-overlay" />
+        {isDesktop && !reducedMotion && (
+          <iframe loading="lazy" referrerPolicy="strict-origin-when-cross-origin"
+            className="absolute pointer-events-none"
+            style={{
+              top: "50%", left: "50%",
+              transform: "translate(-50%, -50%) scale(1.04)",
+              width: "calc(max(100vw, 177.78vh) + 240px)",
+              height: "calc(max(100vh, 56.25vw) + 240px)",
+              opacity: 0.35,
+            }}
+            src={`https://www.youtube.com/embed/${bgVideoId}?autoplay=1&mute=1&loop=1&playlist=${bgVideoId}&controls=0&modestbranding=1&playsinline=1`}
+            title="Background" allow="autoplay; encrypted-media; picture-in-picture"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/60 to-black" />
+        <div className="absolute inset-0 opacity-[0.05] mix-blend-overlay" style={{ backgroundImage: "url('/noise.png')" }} />
       </div>
 
-      {/* ✨ GLOWS */}
-      <motion.div
-        animate={{
-          opacity: [0.15, 0.3, 0.15],
-          scale: [1, 1.05, 1],
-        }}
-        transition={{
-          repeat: Infinity,
-          duration: 5,
-          ease: "easeInOut",
-        }}
-        className="
-      absolute
-      -top-32
-      -left-32
-      w-[420px]
-      h-[420px]
-      rounded-full
-      bg-yellow-400/10
-      blur-[120px]
-      z-10
-    "
-      />
+      {/* GLOWS */}
+      <motion.div aria-hidden animate={{ opacity: [0.12, 0.25, 0.12] }} transition={{ repeat: Infinity, duration: 5 }}
+        className="pointer-events-none fixed -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-yellow-400/10 blur-[130px] z-0" />
+      <motion.div aria-hidden animate={{ opacity: [0.1, 0.2, 0.1] }} transition={{ repeat: Infinity, duration: 7, delay: 1 }}
+        className="pointer-events-none fixed -bottom-40 -right-40 w-[460px] h-[460px] rounded-full bg-yellow-300/[0.08] blur-[130px] z-0" />
 
-      <motion.div
-        animate={{
-          opacity: [0.15, 0.25, 0.15],
-          scale: [1, 1.08, 1],
-        }}
-        transition={{
-          repeat: Infinity,
-          duration: 6,
-          ease: "easeInOut",
-        }}
-        className="
-      absolute
-      -bottom-32
-      -right-32
-      w-[380px]
-      h-[380px]
-      rounded-full
-      bg-yellow-300/10
-      blur-[120px]
-      z-10
-    "
-      />
+      {/* MAIN CONTENT */}
+      <div className="relative z-10 flex flex-col min-h-[100svh]">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
 
-      {/* 🔥 MAIN CONTENT */}
-      <div className="relative z-20 min-h-screen flex items-start justify-center px-4 py-6 sm:items-center sm:py-10 overflow-x-clip">
+          {/* TOP BAR — barra de liga profesional */}
+          <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center justify-between pt-5 pb-2">
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="Pila de Ra'" width={44} height={44} priority
+                className="h-9 w-auto drop-shadow-[0_0_22px_rgba(250,204,21,0.35)]" />
+              <div className="leading-none">
+                <p className="font-display text-base font-bold uppercase tracking-[0.06em] text-white leading-none">Pila de Ra&apos;</p>
+                <p className="kicker mt-1 text-[8px] text-yellow-400/70">Liga de Freestyle · RD</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+              <span className="font-display text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-300">Temporada 2026</span>
+            </div>
+          </motion.div>
 
-        {/* WIDTH CONTAINER */}
-        <div className="w-full max-w-6xl mx-auto">
+          {/* HERO */}
+          <section className="relative pt-8 pb-9 text-center sm:pt-12 sm:pb-12">
 
-          {/* 🧠 HERO */}
-          <HeroHeader
-            heroBadge={heroBadge}
-            heroTitle={heroTitle}
-            heroSubtitle={heroSubtitle}
-            isPreEvent={isPreEvent}
-            timeLeft={timeLeft}
-          />
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12 }}
+              className="kicker mb-5 text-[10px] text-yellow-400/60">
+              Freestyle · República Dominicana
+            </motion.p>
 
-          {/* TOGGLE PAGS */}
-          <div className="sticky top-3 z-40 mb-8 flex justify-center sm:static sm:z-auto sm:mb-10">
-            <div
-              className="relative grid w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-black/85 p-1 shadow-[0_10px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl"
-              style={{
-                gridTemplateColumns: `repeat(${visibleTabs.length}, minmax(0, 1fr))`,
-              }}
-            >
+            {/* Wordmark gigante de impacto */}
+            <div className="relative overflow-hidden">
+              {/* Marca de agua trasera */}
+              <span aria-hidden className="font-impact pointer-events-none absolute left-1/2 top-1/2 -z-0 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-white/[0.03] leading-none"
+                style={{ fontSize: "clamp(5rem, 22vw, 16rem)" }}>RD</span>
+              <h1 className="font-impact relative z-10 uppercase leading-[0.82] text-white"
+                  style={{ fontSize: "clamp(3rem, 13vw, 9rem)", letterSpacing: "0.01em" }}>
+                <span className="block"><TypewriterText text="PILA" delay={0.22} /></span>
+                <span className="block text-transparent bg-clip-text"
+                  style={{ backgroundImage: "linear-gradient(180deg, #fde047, #d4a306)" }}>
+                  <TypewriterText text="DE RA'" delay={0.46} />
+                </span>
+              </h1>
+            </div>
+
+            {/* Línea de marcador bajo el título */}
+            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.9, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              className="mx-auto mt-6 h-px w-40 origin-center bg-gradient-to-r from-transparent via-yellow-400/60 to-transparent" />
+
+            {/* EN VIVO / estado */}
+            <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.0 }}
+              className={`relative mt-6 inline-flex items-center gap-2.5 rounded-full border px-5 py-2 ${
+                isLive ? "border-red-500/40 bg-red-500/[0.10]" : "border-yellow-400/25 bg-yellow-400/[0.07]"
+              }`}>
+              {isLive ? (
+                <>
+                  <span className="absolute inset-0 rounded-full border border-red-500/40 animate-ping" />
+                  <span className="absolute inset-0 rounded-full border border-red-500/20" style={{ animation: "ping 1.8s cubic-bezier(0,0,0.2,1) infinite 0.4s" }} />
+                  <motion.span animate={{ opacity: [1, 0.3, 1], scale: [1, 1.3, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                </>
+              ) : (
+                <motion.span animate={{ opacity: [1, 0.2, 1] }} transition={{ repeat: Infinity, duration: 2 }}
+                  className="h-1.5 w-1.5 shrink-0 rounded-full bg-yellow-400" />
+              )}
+              <span className={`font-display text-[11px] font-semibold uppercase tracking-[0.26em] ${isLive ? "text-red-100" : "text-yellow-200"}`}>
+                {heroBadge}
+              </span>
+            </motion.div>
+
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
+              className="font-display mt-4 text-[13px] font-medium uppercase tracking-[0.2em] text-zinc-400">
+              {slogan}
+            </motion.p>
+
+            {/* Scoreboard countdown */}
+            {showCountdown && (
+              <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.35 }}
+                className="mt-9 flex justify-center gap-2.5 sm:gap-3">
+                {(Object.entries(timeLeft) as [string, number][]).map(([k, v]) => (
+                  <div key={k} className="arena-card flex w-16 flex-col items-center px-2 py-3 sm:w-20">
+                    <span className="font-mono text-2xl font-extrabold tabular-nums text-white sm:text-4xl">{String(v).padStart(2, "0")}</span>
+                    <span className="kicker mt-1.5 text-[8px] text-yellow-400/60">
+                      {k === "d" ? "días" : k === "h" ? "hrs" : k === "m" ? "min" : "seg"}
+                    </span>
+                  </div>
+                ))}
+              </motion.div>
+            )}
+
+            {instagramUrl && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }} className="mt-7">
+                <a href={instagramUrl} target="_blank" rel="noreferrer"
+                  className="font-display inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-500 hover:text-yellow-400 transition">
+                  Instagram <span className="text-yellow-400/60">→</span>
+                </a>
+              </motion.div>
+            )}
+          </section>
+        </div>
+
+        {/* DESKTOP NAV */}
+        <div className="sticky top-0 z-40 hidden sm:block border-y border-white/[0.06] bg-black/90 backdrop-blur-xl">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6">
+            <div className="relative grid" style={{ gridTemplateColumns: `repeat(${SECTIONS.length}, 1fr)` }}>
               <motion.div
-                layoutId="toggle-pill"
-                className="absolute top-1 bottom-1 left-1 rounded-xl bg-yellow-400 shadow-[0_0_24px_rgba(250,204,21,0.18)]"
-                style={{
-                  width: `calc((100% - 8px) / ${visibleTabs.length})`,
-                }}
-                animate={{
-                  x: `${activeTabIndex * 100}%`,
-                }}
-                transition={{
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30,
-                }}
+                className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-yellow-300 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.5)]"
+                style={{ width: `calc(100% / ${SECTIONS.length})` }}
+                animate={{ x: `${activeIndex * 100}%` }}
+                transition={{ type: "spring", stiffness: 310, damping: 32 }}
               />
-
-              {visibleTabs.map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => setView(item.key)}
-                  className={`relative z-10 rounded-lg px-1 py-2 text-[9px] font-black transition-colors duration-200 sm:px-1.5 sm:text-sm
-          ${view === item.key
-                      ? "text-black"
-                      : "text-gray-400 hover:text-yellow-300"
-                    }`}
-                >
-                  {item.label}
+              {SECTIONS.map((s) => (
+                <button key={s.id} type="button" onClick={() => navigate(s.id)}
+                  aria-current={section === s.id ? "page" : undefined}
+                  className={`font-display relative z-10 py-4 text-[12px] font-semibold uppercase tracking-[0.22em] transition-colors ${
+                    section === s.id ? "text-yellow-400" : "text-zinc-500 hover:text-zinc-200"
+                  }`}>
+                  {s.label}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* 🔥 CONTENIDO */}
-          <div className="w-full overflow-x-clip">
-            <AnimatePresence mode="wait">
-
-              {view === "evento" && (
-                <EventView
-                  jueces={jueces}
-                  events={events}
-                  eventConfig={eventConfig}
-                  canRegister={canRegister}
-                  isFull={isFull}
-                  isPreEvent={isPreEvent}
-                  isLiveEvent={isLiveEvent}
-                  isPostEvent={isPostEvent}
-                  slots={slots}
-                  revealedCount={revealedCount}
-                  rosterTotal={rosterTotal}
-                  championAlias={championAlias}
-                  runnerUpAlias={runnerUpAlias}
-                  thirdPlaceAlias={thirdPlaceAlias}
-                  setOpen={setOpen}
-                  setView={setView}
-                />
-              )}
-
-              {view === "mcs" && (
-                <McsView
-                  mcs={mcs}
-                  revealedCount={revealedCount}
-                  rosterTotal={rosterTotal}
-                  revealPercent={revealPercent}
-                  isPreEvent={isPreEvent}
-                  isLiveEvent={isLiveEvent}
-                  isPostEvent={isPostEvent}
-                  isRosterComplete={isRosterComplete}
-                  canRegister={canRegister}
-                  sseConnected={sseConnected}
-                  nextReveal={nextReveal}
-                  lastVisibleMc={lastVisibleMc}
-                  previousVisibleMc={previousVisibleMc}
-                  eventLabel={eventConfig.eventLabel}
-                  shareLineup={shareLineup}
-                />
-              )}
-
-              {view === "ranking" && (
-                <RankingView ranking={ranking} />
-              )}
-
-              {view === "batallas" && (
-                <BattlesView
-                  battles={battles}
-                  visibleBattles={visibleBattles}
-                  battlesByDate={battlesByDate}
-                  battleDates={battleDates}
-                  battleRounds={battleRounds}
-                  battleFilter={battleFilter}
-                  battleDateFilter={battleDateFilter}
-                  battleRoundFilter={battleRoundFilter}
-                  visibleBattlesCount={visibleBattlesCount}
-                  publishedBattlesCount={publishedBattlesCount}
-                  setBattleFilter={setBattleFilter}
-                  setBattleDateFilter={setBattleDateFilter}
-                  setBattleRoundFilter={setBattleRoundFilter}
-                />
-              )}
-
-            </AnimatePresence>
-          </div>
-
-          {/* FOOTER */}
-          <Footer />
-
-          {/* Modal */}
-          <RegisterModal
-            open={open}
-            canRegister={canRegister}
-            isPreEvent={isPreEvent}
-            slots={slots}
-            sending={sending}
-            eventConfig={eventConfig}
-            onClose={() => setOpen(false)}
-            setSending={setSending}
-            onSuccess={(restantes) => {
-              if (typeof restantes === "number") {
-                setSlots(restantes);
-              }
-
-              setOpen(false);
-              setSuccess(true);
-              setTimeout(() => setSuccess(false), 5000);
-            }}
-          />
-
-          {/* ✅ TOAST */}
-          <SuccessToast show={success} />
         </div>
+
+        {/* SECTION CONTENT */}
+        <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10 overflow-x-clip">
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div key={section} custom={direction} variants={pageVariants}
+              initial="enter" animate="center" exit="exit" transition={pageTrans}
+              className="space-y-6">
+              {section === "inicio" && (
+                <>
+                  <SeasonStats mcs={ranking.length} batallas={battles.length} fechas={events.length} />
+                  <LeagueHero featuredEvent={league.featuredEvent} latestCompletedEvent={league.latestCompletedEvent}
+                    capacity={league.capacity} slogan={slogan} />
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <CompactRanking ranking={ranking} />
+                    <LatestResults latestCompletedEvent={league.latestCompletedEvent} />
+                  </div>
+                </>
+              )}
+              {section === "ranking"     && <CompactRanking ranking={ranking} limit={ranking.length || 30} variant="full" />}
+              {section === "fechas"      && <EventTimeline events={events} />}
+              {section === "batallas"    && <BattleArchive battles={battles} events={events} />}
+              {section === "inscripcion" && <RegistrationCard activeEvent={league.activeEvent} capacity={league.capacity} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* FOOTER */}
+        <footer className="mx-auto w-full max-w-6xl px-4 pb-8 pt-6 text-center">
+          <div className="mx-auto mb-4 h-px w-full max-w-xs bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+          <p className="font-display text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
+            Pila de Ra' · Temporada {new Date().getFullYear()}
+          </p>
+          <p className="mt-2 text-[10px] text-zinc-600">
+            Hecho con ❤️ por{" "}
+            <a href="https://t.me/Ztyl3" target="_blank" rel="noreferrer"
+              className="font-display font-semibold text-zinc-500 hover:text-yellow-400 transition-colors">
+              Elian Gomez
+            </a>
+          </p>
+        </footer>
       </div>
 
-    </main >
+      {/* MOBILE BOTTOM NAV */}
+      <nav className="fixed bottom-0 inset-x-0 z-40 sm:hidden border-t border-white/[0.08] bg-black/95 backdrop-blur-xl"
+           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+        <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${SECTIONS.length}, 1fr)` }}>
+          {SECTIONS.map((s) => {
+            const isActive = section === s.id;
+            return (
+              <button key={s.id} type="button" onClick={() => navigate(s.id)}
+                aria-current={isActive ? "page" : undefined} aria-label={s.label}
+                className={`relative flex flex-col items-center justify-center gap-1 transition-colors ${
+                  isActive ? "text-yellow-400" : "text-zinc-600 active:text-zinc-400"
+                }`}>
+                {isActive && (
+                  <motion.div layoutId="bottom-nav-dot"
+                    className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-yellow-400"
+                    transition={{ type: "spring", stiffness: 400, damping: 35 }} />
+                )}
+                <NavIcon id={s.id} />
+                <span className="font-display text-[10px] font-semibold uppercase tracking-[0.1em] leading-none">{s.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+
+    </main>
   );
 }
