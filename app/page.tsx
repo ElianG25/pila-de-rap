@@ -521,7 +521,7 @@ export default function Home() {
         <footer className="mx-auto w-full max-w-6xl px-4 pb-8 pt-6 text-center">
           <div className="mx-auto mb-4 h-px w-full max-w-xs bg-gradient-to-r from-transparent via-white/10 to-transparent" />
           <p className="font-display text-[11px] font-semibold uppercase tracking-[0.3em] text-zinc-500">
-            Pila de Ra&apos; · Temporada {new Date().getFullYear()}
+            Pila de Ra' · Temporada {new Date().getFullYear()}
           </p>
           <p className="mt-2 text-[10px] text-zinc-600">
             Hecho con ❤️ por{" "}
