@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pila de Ra' — Liga de Freestyle (RD)
 
-## Getting Started
+Web oficial de la liga de freestyle **Pila de Ra'** (República Dominicana): ranking,
+fechas, archivo de batallas con reproductor embebido e inscripciones en vivo.
 
-First, run the development server:
+Construida con **Next.js 16**, **React 19**, **Tailwind CSS 4** y **Framer Motion**.
+Los datos se sirven desde una hoja de **Google Sheets** vía un Web App de Apps Script.
+
+## Requisitos / Variables de entorno
+
+Copia `.env.example` a `.env.local` y rellena:
+
+| Variable | Obligatoria | Descripción |
+|----------|-------------|-------------|
+| `SHEETS_GET_URL` | Sí | URL del Web App de Apps Script que sirve y recibe los datos. Sin ella, `/api/league` responde 500. |
+| `TELEGRAM_TOKEN` | No | Token del bot de Telegram para notificar inscripciones. |
+| `TELEGRAM_CHAT_ID` | No | Chat destino de las notificaciones. |
+
+## Scripts
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev     # desarrollo
+npm run build   # build de producción
+npm start       # servir el build
+npm run lint    # eslint
+npm test        # tests (vitest)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Arquitectura
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `app/page.tsx` — shell de una sola página con navegación por secciones (inicio, ranking, fechas, batallas, inscripción).
+- `app/components/league/*` — componentes de UI (hero, ranking con podio, timeline de fechas, archivo de batallas, inscripción, stats).
+- `app/lib/league/` — `types.ts` (tipos), `helpers.ts` (orden/filtrado), `adapt.ts` (normalización + validación zod del payload de Sheets), `api.ts` (fetch cliente).
+- `app/api/league` — proxy a Sheets. `GET` con **revalidación de 45s** (ISR + `stale-while-revalidate`); `POST` para inscripciones con **honeypot + rate-limit por IP**.
+- `app/api/og` y `app/api/share` — imágenes Open Graph dinámicas (`/api/og` depende de `/api/mcs`).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Tipografías
+Sistema de 4 familias vía `next/font`: **Anton** (impacto), **Oswald** (display/UI),
+**Inter** (texto) y **JetBrains Mono** (cifras/estadísticas).
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Datos y caché
+`/api/league` cachea la respuesta de Sheets 45s en el servidor, así el polling del
+cliente no golpea Apps Script en cada visita. El payload se valida y normaliza con
+zod en `adapt.ts` (tolerante a campos ausentes o tipos inesperados, sin tirar la fila).

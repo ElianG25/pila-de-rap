@@ -27,7 +27,7 @@ export function EventStatusBadge({ status }: EventStatusBadgeProps) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] ${
+      className={`font-display inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
         STATUS_STYLES[normalizedStatus] || STATUS_STYLES.futura
       }`}
     >
