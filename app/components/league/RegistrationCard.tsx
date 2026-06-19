@@ -1,148 +1,177 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { LeagueEvent } from "@/app/lib/league/types";
 
 type RegistrationCardProps = {
   activeEvent: LeagueEvent | null;
-  capacity: {
-    total: number;
-    restantes: number;
-    max: number;
-  };
+  capacity: { total: number; restantes: number; max: number };
 };
+type FormState = { nombre: string; alias: string; telefono: string; instagram: string };
+const blank: FormState = { nombre: "", alias: "", telefono: "", instagram: "" };
 
-type FormState = {
-  nombre: string;
-  alias: string;
-  telefono: string;
-  instagram: string;
+const ERR_MAP: Record<string, string> = {
+  NO_ACTIVE_EVENT:       "No hay una fecha activa para inscribirse.",
+  INSCRIPCIONES_CERRADAS:"Las inscripciones no están abiertas.",
+  CAMPOS_INCOMPLETOS:    "Completa nombre, AKA y teléfono.",
+  TELEFONO_INVALIDO:     "El teléfono debe tener 10 dígitos.",
+  CUPOS_AGOTADOS:        "Los cupos están agotados.",
+  YA_INSCRITO:           "Ese teléfono ya está inscrito para esta fecha.",
+  HOJA_NO_EXISTE:        "No se encontró la hoja de inscripciones.",
+  RATE_LIMITED:          "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
 };
-
-const initialForm: FormState = { nombre: "", alias: "", telefono: "", instagram: "" };
-
-function getErrorMessage(error: string) {
-  const messages: Record<string, string> = {
-    NO_ACTIVE_EVENT: "Todavia no hay una fecha activa para inscribirse.",
-    INSCRIPCIONES_CERRADAS: "Las inscripciones no estan abiertas en este momento.",
-    CAMPOS_INCOMPLETOS: "Completa nombre, AKA y telefono.",
-    TELEFONO_INVALIDO: "El telefono debe tener 10 digitos.",
-    CUPOS_AGOTADOS: "Los cupos estan agotados.",
-    YA_INSCRITO: "Ese telefono ya esta inscrito para esta fecha.",
-    HOJA_NO_EXISTE: "No se encontro la hoja de inscripciones."
-  };
-  return messages[error] || "No se pudo completar la inscripcion.";
-}
 
 export function RegistrationCard({ activeEvent, capacity }: RegistrationCardProps) {
-  const [form, setForm] = useState<FormState>(initialForm);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [form,    setForm]    = useState<FormState>(blank);
+  const [hp,      setHp]      = useState(""); // honeypot anti-spam (debe quedar vacío)
+  const [status,  setStatus]  = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
   const isOpen = Boolean(activeEvent?.inscripcionesAbiertas);
+  const pct    = capacity.max > 0 ? Math.min(100, Math.round((capacity.total / capacity.max) * 100)) : 0;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setStatus("loading");
     setMessage("");
-
     try {
-      const response = await fetch("/api/league", {
+      const res  = await fetch("/api/league", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, eventId: activeEvent?.eventId ?? "" })
+        body: JSON.stringify({ ...form, website: hp, eventId: activeEvent?.eventId ?? "" }),
       });
-
-      const payload = await response.json();
-
-      if (!payload.ok) {
+      const data = await res.json();
+      if (!data.ok) {
         setStatus("error");
-        setMessage(getErrorMessage(payload.error));
+        setMessage(ERR_MAP[data.error] ?? "No se pudo completar la inscripción.");
         return;
       }
-
       setStatus("success");
-      setMessage("Inscripcion recibida. Te esperamos en la plaza.");
-      setForm(initialForm);
+      setMessage("Inscripción recibida. Te esperamos en la plaza.");
+      setForm(blank);
     } catch {
       setStatus("error");
-      setMessage("Hubo un error de conexion. Intentalo nuevamente.");
+      setMessage("Error de conexión. Inténtalo nuevamente.");
     }
   }
 
+  const inputClass = `w-full border-b border-white/[0.1] bg-transparent py-3 text-sm font-bold text-white
+    outline-none placeholder:text-zinc-600 focus:border-yellow-400/50 transition-colors
+    disabled:opacity-40`;
+
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-zinc-950 p-5">
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-yellow-400">Inscripcion</p>
-      <h2 className="mt-1 text-2xl font-black uppercase text-white">
-        {isOpen ? "Asegura tu cupo" : "Inscripciones cerradas"}
-      </h2>
+    <section className="arena-card p-5 sm:p-8">
 
-      <p className="mt-3 text-sm leading-6 text-zinc-400">
-        {isOpen
-          ? `Cupos disponibles para ${activeEvent?.titulo || "la proxima fecha"}.`
-          : "Cuando la proxima fecha abra inscripciones, el formulario aparecera activo aqui."}
-      </p>
+      {/* Header */}
+      <div className="mb-8 border-b border-white/[0.05] pb-5">
+        <p className="kicker text-[10px] text-yellow-400 mb-1">
+          Inscripción
+        </p>
+        <h2 className="section-title text-4xl text-white">
+          {isOpen ? "Asegura tu cupo" : "Inscripciones cerradas"}
+        </h2>
+        <p className="mt-2 text-sm text-zinc-500">
+          {isOpen
+            ? `Cupos disponibles para ${activeEvent?.titulo || "la próxima fecha"}.`
+            : "Cuando la próxima fecha abra inscripciones, el formulario estará activo aquí."}
+        </p>
+      </div>
 
-      <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-500">Cupos</p>
-            <p className="mt-1 text-3xl font-black text-white">
-              {capacity.total}<span className="text-base text-zinc-500">/{capacity.max}</span>
-            </p>
+      {/* Capacity bar */}
+      <div className="mb-8 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[10px] font-display font-bold uppercase tracking-[0.28em] text-zinc-600 mb-1">Cupos</p>
+          <p className="text-4xl font-mono font-extrabold tabular-nums text-white leading-none">
+            {capacity.total}
+            <span className="text-xl text-zinc-600">/{capacity.max}</span>
+          </p>
+        </div>
+        <div className="flex-1 max-w-48">
+          <p className="text-right text-xs font-bold text-yellow-300 mb-1.5">
+            {capacity.restantes} disponibles
+          </p>
+          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+            <motion.div
+              initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+              transition={{ duration: 1, delay: 0.3 }}
+              className="h-full rounded-full bg-yellow-400"
+            />
           </div>
-          <p className="text-sm font-black text-yellow-300">{capacity.restantes} restantes</p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-5 space-y-3">
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Honeypot anti-spam: oculto a humanos, los bots lo rellenan */}
         <input
-          value={form.nombre}
-          onChange={(e) => setForm((c) => ({ ...c, nombre: e.target.value }))}
-          disabled={!isOpen || status === "loading"}
-          placeholder="Nombre"
-          className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-50"
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+          value={hp}
+          onChange={(e) => setHp(e.target.value)}
+          style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
         />
-        <input
-          value={form.alias}
-          onChange={(e) => setForm((c) => ({ ...c, alias: e.target.value }))}
-          disabled={!isOpen || status === "loading"}
-          placeholder="AKA / Nombre artistico"
-          className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-50"
-        />
-        <input
-          value={form.telefono}
-          onChange={(e) => setForm((c) => ({ ...c, telefono: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-          disabled={!isOpen || status === "loading"}
-          placeholder="Telefono, 10 digitos"
-          inputMode="numeric"
-          className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-50"
-        />
-        <input
-          value={form.instagram}
-          onChange={(e) => setForm((c) => ({ ...c, instagram: e.target.value }))}
-          disabled={!isOpen || status === "loading"}
-          placeholder="Instagram, opcional"
-          className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-zinc-600 disabled:opacity-50"
-        />
+        {([
+          { key: "nombre",    placeholder: "Nombre completo",       type: "text"    },
+          { key: "alias",     placeholder: "AKA / Nombre artístico", type: "text"    },
+          { key: "telefono",  placeholder: "Teléfono (10 dígitos)",  type: "tel"     },
+          { key: "instagram", placeholder: "Instagram (opcional)",   type: "text"    },
+        ] as const).map(({ key, placeholder, type }) => (
+          <div key={key} className="relative">
+            <input
+              value={form[key]}
+              type={type}
+              placeholder={placeholder}
+              inputMode={key === "telefono" ? "numeric" : undefined}
+              onChange={(e) => {
+                const val = key === "telefono"
+                  ? e.target.value.replace(/\D/g, "").slice(0, 10)
+                  : e.target.value;
+                setForm((c) => ({ ...c, [key]: val }));
+              }}
+              disabled={!isOpen || status === "loading"}
+              className={inputClass}
+            />
+          </div>
+        ))}
+
         <button
           type="submit"
           disabled={!isOpen || status === "loading"}
-          className="w-full rounded-xl bg-yellow-400 px-4 py-3 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+          className="relative w-full overflow-hidden btn-gold rounded-xl py-3.5 text-sm disabled:cursor-not-allowed disabled:opacity-40 disabled:saturate-0"
         >
-          {status === "loading" ? "Enviando..." : "Inscribirme"}
+          {status === "loading" ? (
+            <span className="flex items-center justify-center gap-2">
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                className="inline-block h-4 w-4 rounded-full border-2 border-black/30 border-t-black"
+              />
+              Enviando...
+            </span>
+          ) : "Inscribirme"}
         </button>
       </form>
 
-      {message && (
-        <p className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold ${
-          status === "success"
-            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-            : "border-yellow-400/30 bg-yellow-400/10 text-yellow-200"
-        }`}>
-          {message}
-        </p>
-      )}
+      {/* Feedback */}
+      <AnimatePresence>
+        {message && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            role="status" aria-live="polite"
+            className={`mt-5 rounded-xl border px-4 py-3 text-sm font-bold ${
+              status === "success"
+                ? "border-emerald-500/25 bg-emerald-500/[0.07] text-emerald-300"
+                : "border-yellow-400/25 bg-yellow-400/[0.07] text-yellow-200"
+            }`}
+          >
+            {message}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

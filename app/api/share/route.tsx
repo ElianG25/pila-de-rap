@@ -167,7 +167,7 @@ export async function GET() {
                   color: "#facc15",
                 }}
               >
-                PILA DE RA'
+                PILA DE RA&apos;
               </div>
 
               <div
@@ -395,7 +395,7 @@ export async function GET() {
                   color: "#facc15",
                 }}
               >
-                VAMO' A PRENDER LA PLAZA!
+                VAMO&apos; A PRENDER LA PLAZA!
               </div>
 
               <div

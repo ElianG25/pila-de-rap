@@ -1,0 +1,206 @@
+import { z } from "zod";
+import type { LeagueEvent, LeaguePayload, RankingItem, Battle, Registration } from "./types";
+
+/* ── Coerciones seguras ──────────────────────────────────────────── */
+const str = z.preprocess((v) => (v == null ? "" : v), z.coerce.string()).catch("").default("");
+const num = z.preprocess((v) => (v == null ? 0 : v), z.coerce.number()).catch(0).default(0);
+
+/** Booleano tolerante: "FALSE"/"0"/"no"/"" → false (Boolean() los daría truthy). */
+const bool = z
+  .any()
+  .transform((v) => {
+    if (typeof v === "boolean") return v;
+    const s = String(v ?? "").trim().toLowerCase();
+    return !(s === "" || s === "false" || s === "0" || s === "no" || s === "n");
+  })
+  .catch(false)
+  .default(false);
+
+const ESTADOS = ["futura", "anunciada", "inscripciones", "en_vivo", "finalizada", "oculta"] as const;
+const estado = z
+  .any()
+  .transform((v) => {
+    const s = String(v ?? "").trim();
+    return (ESTADOS as readonly string[]).includes(s) ? s : "futura";
+  })
+  .catch("futura")
+  .default("futura") as z.ZodType<LeagueEvent["estado"]>;
+
+/* ── Esquemas ─────────────────────────────────────────────────────── */
+const EventSchema: z.ZodType<LeagueEvent> = z.object({
+  eventId: str,
+  numero: num,
+  titulo: str,
+  label: str,
+  estado,
+  fechaEvento: str,
+  horaEvento: str,
+  ubicacion: str,
+  maxCupos: num,
+  campeon: str,
+  subcampeon: str,
+  mvp: str,
+  resumen: str,
+  youtubePlaylist: str,
+  inscripcionesAbiertas: bool,
+  visible: bool,
+  orden: num,
+});
+
+const RankingSchema: z.ZodType<RankingItem> = z.object({
+  alias: str,
+  puntosLiga: num,
+  puntosBatalla: num,
+  victorias: num,
+  derrotas: num,
+  replicas: num,
+  bonus: num,
+  estado: str,
+  ultimaFecha: str,
+  movimiento: str,
+});
+
+const BattleSchema: z.ZodType<Battle> = z.object({
+  battleId: str,
+  eventId: str,
+  orden: num,
+  ronda: str,
+  grupo: str,
+  mc1: str,
+  mc2: str,
+  mc3: str,
+  mc4: str,
+  ganador: str,
+  perdedor: str,
+  youtubeUrl: str,
+  estado: str,
+  tipoResultado: str,
+  cuentaParaLiga: bool,
+  puntosMc1: num,
+  puntosMc2: num,
+  notas: str,
+});
+
+const RegistrationSchema: z.ZodType<Registration> = z.object({
+  createdAt: str,
+  eventId: str,
+  nombre: str,
+  alias: str,
+  telefono: str,
+  instagram: str,
+  estado: str,
+  source: str,
+});
+
+/** Parsea cada elemento de un array; descarta los que ni siquiera son objetos. */
+function parseArray<T>(value: unknown, schema: z.ZodType<T>, label: string): T[] {
+  if (!Array.isArray(value)) return [];
+  const out: T[] = [];
+  for (const item of value) {
+    const res = schema.safeParse(item);
+    if (res.success) out.push(res.data);
+    else console.warn(`[adaptPayload] elemento inválido en ${label}:`, res.error.issues?.[0]?.message);
+  }
+  return out;
+}
+
+/** Limpia artefacto de Sheets: hora leída como fecha "1899-12-30...". */
+function normalizeTime(value: string): string {
+  if (!value || value.startsWith("1899-12-30")) return "";
+  return value;
+}
+
+function normalizeEvent(event: LeagueEvent): LeagueEvent {
+  return { ...event, horaEvento: normalizeTime(event.horaEvento) };
+}
+
+/**
+ * Transforma el payload crudo del Apps Script (formato viejo o nuevo)
+ * al shape que espera fetchLeague(): { ok: true, league: LeaguePayload }.
+ * Valida y normaliza con zod para evitar errores silenciosos si Sheets cambia.
+ */
+export function adaptPayload(raw: Record<string, unknown>): { ok: true; league: LeaguePayload } {
+  // Formato nuevo: el Apps Script ya devuelve { ok, league }
+  if (raw.ok === true && raw.league != null) {
+    const rawLeague = raw.league as Record<string, unknown>;
+    const config = (rawLeague.config ?? {}) as Record<string, string>;
+    const events = parseArray(rawLeague.events, EventSchema, "events").map(normalizeEvent);
+
+    const byId = (id: unknown) =>
+      typeof id === "string" && id ? events.find((e) => e.eventId === id) ?? null : null;
+
+    const pickEvent = (cfgId: unknown, fallback: unknown): LeagueEvent | null => {
+      const fromCfg = byId(cfgId);
+      if (fromCfg) return fromCfg;
+      const parsed = fallback ? EventSchema.safeParse(fallback) : null;
+      return parsed && parsed.success ? normalizeEvent(parsed.data) : null;
+    };
+
+    const league: LeaguePayload = {
+      config,
+      events,
+      featuredEvent: pickEvent(config.featuredEventId, rawLeague.featuredEvent),
+      activeEvent: pickEvent(config.activeEventId, rawLeague.activeEvent),
+      latestCompletedEvent: pickEvent(config.latestCompletedEventId, rawLeague.latestCompletedEvent),
+      registrations: parseArray(rawLeague.registrations, RegistrationSchema, "registrations"),
+      participants: Array.isArray(rawLeague.participants) ? rawLeague.participants : [],
+      ranking: parseArray(rawLeague.ranking, RankingSchema, "ranking"),
+      battles: parseArray(rawLeague.battles, BattleSchema, "battles"),
+      media: Array.isArray(rawLeague.media) ? rawLeague.media : [],
+      capacity: normalizeCapacity(rawLeague.capacity),
+    };
+
+    return { ok: true, league };
+  }
+
+  // Formato viejo: { data: [], events: [], ranking: [], battles: [], config: {} }
+  const events = parseArray(raw.events, EventSchema, "events").map(normalizeEvent);
+  const registrations = parseArray(raw.data, RegistrationSchema, "data");
+  const ranking = parseArray(raw.ranking, RankingSchema, "ranking");
+  const battles = parseArray(raw.battles, BattleSchema, "battles");
+  const config: Record<string, string> = (raw.config ?? {}) as Record<string, string>;
+
+  const publicEvents = events
+    .filter((e) => e.visible && e.estado !== "oculta")
+    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+  const ACTIVE_STATES = ["en_vivo", "inscripciones", "anunciada"];
+
+  const featuredEvent =
+    publicEvents.find((e) => ACTIVE_STATES.includes(e.estado)) ?? publicEvents[0] ?? null;
+
+  const activeEvent =
+    publicEvents.find((e) => e.inscripcionesAbiertas) ??
+    publicEvents.find((e) => ["en_vivo", "inscripciones"].includes(e.estado)) ??
+    null;
+
+  const latestCompletedEvent =
+    [...publicEvents].reverse().find((e) => e.estado === "finalizada") ?? null;
+
+  const maxCupos = activeEvent?.maxCupos || featuredEvent?.maxCupos || 32;
+  const total = registrations.length;
+
+  const league: LeaguePayload = {
+    config,
+    activeEvent,
+    featuredEvent,
+    latestCompletedEvent,
+    events,
+    registrations,
+    participants: [],
+    ranking,
+    battles,
+    media: [],
+    capacity: { total, restantes: Math.max(0, maxCupos - total), max: maxCupos },
+  };
+
+  return { ok: true, league };
+}
+
+function normalizeCapacity(value: unknown): LeaguePayload["capacity"] {
+  const c = (value ?? {}) as Record<string, unknown>;
+  const total = Number(c.total) || 0;
+  const max = Number(c.max) || 0;
+  const restantes = c.restantes != null ? Number(c.restantes) || 0 : Math.max(0, max - total);
+  return { total, restantes, max };
+}
