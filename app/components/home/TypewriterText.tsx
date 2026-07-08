@@ -2,6 +2,8 @@
 
 import { motion } from "framer-motion";
 
+const NBSP = " ";
+
 export function TypewriterText({ text, delay = 0 }: { text: string; delay?: number }) {
   return (
     <>
@@ -13,7 +15,8 @@ export function TypewriterText({ text, delay = 0 }: { text: string; delay?: numb
           transition={{ duration: 0.22, delay: delay + i * 0.038 }}
           style={{ display: "inline-block" }}
         >
-          {char === " " ? " " : char}
+          {/* Espacio irrompible: uno normal se colapsa al ser el único contenido de un inline-block */}
+          {char === " " ? NBSP : char}
         </motion.span>
       ))}
     </>
