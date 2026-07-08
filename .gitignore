@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+pdr.xlsx
+google-apps-scripts.gs
+
 # production
 /build
 
