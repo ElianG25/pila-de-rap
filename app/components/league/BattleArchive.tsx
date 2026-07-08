@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Battle, LeagueEvent } from "@/app/lib/league/types";
+import { initials } from "@/app/lib/format";
 
 type BattleArchiveProps = {
   battles: Battle[];
@@ -18,13 +19,6 @@ function getYouTubeId(url: string): string | null {
   if (!url) return null;
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&\s/]+)/);
   return m?.[1] ?? null;
-}
-
-function initials(alias: string): string {
-  const parts = alias.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /* ─── Reproductor embebido (modal) ─────────────────────────── */

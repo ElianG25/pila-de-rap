@@ -34,25 +34,18 @@ describe("adaptPayload — formato nuevo", () => {
   });
 });
 
-describe("adaptPayload — formato viejo", () => {
-  it("deriva featured/active/latest y capacidad desde data", () => {
-    const raw = {
-      data: [{ alias: "MC1" }, { alias: "MC2" }],
-      events: [
-        { eventId: "e1", estado: "finalizada", visible: true, orden: 1, maxCupos: 16 },
-        { eventId: "e2", estado: "inscripciones", visible: true, orden: 2, maxCupos: 16, inscripcionesAbiertas: true },
-      ],
-      ranking: [], battles: [], config: {},
-    };
-    const { league } = adaptPayload(raw as Record<string, unknown>);
-    expect(league.featuredEvent?.eventId).toBe("e2");
-    expect(league.activeEvent?.eventId).toBe("e2");
-    expect(league.latestCompletedEvent?.eventId).toBe("e1");
-    expect(league.capacity).toEqual({ total: 2, restantes: 14, max: 16 });
+describe("adaptPayload — payload inválido o inesperado", () => {
+  it("devuelve una liga vacía si falta 'ok' u 'league' (no lanza)", () => {
+    const { league } = adaptPayload({ events: "nope", ranking: 42, battles: null } as Record<string, unknown>);
+    expect(league.events).toEqual([]);
+    expect(league.ranking).toEqual([]);
+    expect(league.battles).toEqual([]);
+    expect(league.featuredEvent).toBeNull();
   });
 
-  it("es resiliente a datos basura (no lanza)", () => {
-    const { league } = adaptPayload({ events: "nope", ranking: 42, battles: null } as Record<string, unknown>);
+  it("es resiliente a datos basura dentro de un league válido", () => {
+    const raw = { ok: true, league: { events: "nope", ranking: 42, battles: null, config: {} } };
+    const { league } = adaptPayload(raw as Record<string, unknown>);
     expect(league.events).toEqual([]);
     expect(league.ranking).toEqual([]);
     expect(league.battles).toEqual([]);
