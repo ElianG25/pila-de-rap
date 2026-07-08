@@ -29,3 +29,12 @@ export function getPublishedBattles(battles: Battle[]) {
 export function getEventById(events: LeagueEvent[], eventId: string) {
   return events.find((event) => event.eventId === eventId) || null;
 }
+
+/**
+ * Flags de Config (showRanking, showBattles, showEvents, ...). El backend
+ * (Apps Script) ya fusiona sus propios defaults, así que llegan siempre como
+ * "TRUE"/"FALSE"; solo se consideran deshabilitados si dicen "FALSE" explícito.
+ */
+export function isSectionEnabled(config: Record<string, string> | undefined | null, key: string): boolean {
+  return config?.[key] !== "FALSE";
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortRanking, getPublicEvents, getPublishedBattles, getEventById } from "./helpers";
+import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled } from "./helpers";
 import type { RankingItem, LeagueEvent, Battle } from "./types";
 
 const mkRank = (p: Partial<RankingItem>): RankingItem => ({
@@ -61,5 +61,16 @@ describe("getEventById", () => {
     const events = [mkEvent({ eventId: "a" }), mkEvent({ eventId: "b" })];
     expect(getEventById(events, "b")?.eventId).toBe("b");
     expect(getEventById(events, "z")).toBeNull();
+  });
+});
+
+describe("isSectionEnabled", () => {
+  it("está habilitado por defecto si el flag no viene o el config no existe", () => {
+    expect(isSectionEnabled(undefined, "showRanking")).toBe(true);
+    expect(isSectionEnabled({}, "showRanking")).toBe(true);
+    expect(isSectionEnabled({ showRanking: "TRUE" }, "showRanking")).toBe(true);
+  });
+  it("solo se deshabilita con 'FALSE' explícito", () => {
+    expect(isSectionEnabled({ showRanking: "FALSE" }, "showRanking")).toBe(false);
   });
 });

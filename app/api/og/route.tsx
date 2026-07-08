@@ -1,62 +1,45 @@
 import { ImageResponse } from "next/og";
+import { adaptPayload } from "@/app/lib/league/adapt";
+import { sortRanking } from "@/app/lib/league/helpers";
+import type { LeaguePayload } from "@/app/lib/league/types";
 
 export const runtime = "edge";
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
-const MAX_CUPOS = 32;
-const MAX_VISIBLE_NAMES = 18;
-
-type MC = {
-  alias?: string;
-  nombre?: string;
-  visible?: boolean;
-};
-
-type McsResponse = {
-  data?: MC[];
-  revealed?: number;
-  max?: number;
-  isRosterComplete?: boolean;
-  nextRevealHour?: string | null;
-};
-
-async function getMcs(): Promise<McsResponse> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://piladerap.vercel.app";
+async function getLeague(): Promise<LeaguePayload | null> {
+  const sheetsUrl = process.env.SHEETS_GET_URL;
+  if (!sheetsUrl) return null;
 
   try {
-    const res = await fetch(`${baseUrl}/api/mcs`, {
-      cache: "no-store",
-    });
-
-    if (!res.ok) return {};
-
-    return (await res.json()) as McsResponse;
+    const res = await fetch(sheetsUrl, { next: { revalidate: 60 } });
+    if (!res.ok) return null;
+    const raw = await res.json();
+    return adaptPayload(raw as Record<string, unknown>).league;
   } catch {
-    return {};
+    return null;
   }
 }
 
-function getMcName(mc: MC) {
-  return String(mc.alias || mc.nombre || "MC").trim();
+function getBadge(estado?: string): string {
+  if (estado === "en_vivo") return "EN VIVO";
+  if (estado === "inscripciones") return "INSCRIPCIONES ABIERTAS";
+  if (estado === "anunciada") return "FECHA CONFIRMADA";
+  return "TEMPORADA 2026";
 }
 
 export async function GET() {
-  const response = await getMcs();
+  const league = await getLeague();
+  const featured = league?.featuredEvent ?? null;
+  const latest = league?.latestCompletedEvent ?? null;
+  const top3 = league ? sortRanking(league.ranking).slice(0, 3) : [];
 
-  const mcs = Array.isArray(response.data) ? response.data : [];
-  const max = response.max || MAX_CUPOS;
-
-  const visibles = mcs
-    .filter((mc) => mc.visible)
-    .slice(0, MAX_VISIBLE_NAMES);
-
-  const revealed = response.revealed ?? mcs.filter((mc) => mc.visible).length;
-
-  const isRosterComplete =
-    Boolean(response.isRosterComplete) || revealed >= MAX_CUPOS;
-
-  const hiddenVisibleCount = Math.max(0, revealed - visibles.length);
+  const badge = getBadge(featured?.estado);
+  const headline = (featured?.titulo || "LA PLAZA SIGUE VIVA").toUpperCase();
+  const sub =
+    featured && featured.estado !== "futura"
+      ? [featured.fechaEvento, featured.ubicacion].filter(Boolean).join("  ·  ") ||
+        "Freestyle, barras y competencia real en RD"
+      : "Freestyle, barras y competencia real en República Dominicana";
 
   return new ImageResponse(
     (
@@ -81,29 +64,22 @@ export async function GET() {
             width: "100%",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              fontSize: 42,
-              fontWeight: 900,
-              color: "#facc15",
-            }}
-          >
-            PILA DE RAP
+          <div style={{ display: "flex", fontSize: 42, fontWeight: 900, color: "#facc15" }}>
+            PILA DE RA&apos;
           </div>
 
           <div
             style={{
               display: "flex",
-              backgroundColor: isRosterComplete ? "#facc15" : "#18181b",
-              color: isRosterComplete ? "#000000" : "#fde68a",
+              backgroundColor: "#facc15",
+              color: "#000000",
               borderRadius: 999,
               padding: "12px 22px",
               fontSize: 22,
               fontWeight: 900,
             }}
           >
-            {revealed}/{max} MCs
+            {badge}
           </div>
         </div>
 
@@ -111,72 +87,62 @@ export async function GET() {
           style={{
             display: "flex",
             marginTop: 34,
-            fontSize: 76,
+            fontSize: headline.length > 22 ? 58 : 76,
             fontWeight: 900,
-            lineHeight: 1,
+            lineHeight: 1.05,
           }}
         >
-          {isRosterComplete ? "ROSTER COMPLETO" : "ROSTER REVELADO"}
+          {headline}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            marginTop: 18,
-            fontSize: 28,
-            color: "#fde68a",
-          }}
-        >
-          {isRosterComplete
-            ? "Los 32 MCs ya fueron revelados"
-            : `${revealed} MCs confirmados - Proximo drop 7:00 PM RD`}
+        <div style={{ display: "flex", marginTop: 18, fontSize: 28, color: "#fde68a" }}>
+          {sub}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            flexWrap: "wrap",
-            marginTop: 38,
-            width: "100%",
-          }}
-        >
-          {visibles.map((mc, index) => (
-            <div
-              key={`${getMcName(mc)}-${index}`}
-              style={{
-                display: "flex",
-                backgroundColor: "#27272a",
-                color: "#ffffff",
-                borderRadius: 999,
-                padding: "13px 22px",
-                marginRight: 16,
-                marginBottom: 16,
-                fontSize: 28,
-                fontWeight: 800,
-              }}
-            >
-              {getMcName(mc)}
-            </div>
-          ))}
-
-          {hiddenVisibleCount > 0 && (
+        <div style={{ display: "flex", flexDirection: "row", gap: 16, marginTop: 44, width: "100%" }}>
+          {top3.length > 0 ? (
+            top3.map((mc, i) => (
+              <div
+                key={mc.alias}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  flex: 1,
+                  backgroundColor: i === 0 ? "rgba(250,204,21,0.14)" : "#18181b",
+                  border: i === 0 ? "1px solid rgba(250,204,21,0.4)" : "1px solid #27272a",
+                  borderRadius: 20,
+                  padding: "20px 12px",
+                }}
+              >
+                <div style={{ display: "flex", fontSize: 18, fontWeight: 900, color: i === 0 ? "#facc15" : "#a1a1aa" }}>
+                  {`#${i + 1}`}
+                </div>
+                <div style={{ display: "flex", fontSize: 26, fontWeight: 900, color: "#ffffff", marginTop: 6 }}>
+                  {mc.alias}
+                </div>
+                <div style={{ display: "flex", fontSize: 18, fontWeight: 700, color: "#fde68a", marginTop: 4 }}>
+                  {mc.puntosLiga} pts
+                </div>
+              </div>
+            ))
+          ) : latest?.campeon ? (
             <div
               style={{
                 display: "flex",
-                backgroundColor: "#facc15",
-                color: "#000000",
-                borderRadius: 999,
-                padding: "13px 22px",
-                marginRight: 16,
-                marginBottom: 16,
-                fontSize: 28,
-                fontWeight: 900,
+                flexDirection: "column",
+                backgroundColor: "#18181b",
+                border: "1px solid #27272a",
+                borderRadius: 20,
+                padding: "20px 28px",
               }}
             >
-              +{hiddenVisibleCount} mas
+              <div style={{ display: "flex", fontSize: 18, color: "#a1a1aa" }}>Último campeón</div>
+              <div style={{ display: "flex", fontSize: 32, fontWeight: 900, color: "#facc15" }}>
+                {latest.campeon}
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
 
         <div
@@ -191,10 +157,7 @@ export async function GET() {
             color: "#d4d4d8",
           }}
         >
-          <div style={{ display: "flex" }}>
-            {isRosterComplete ? "La lista esta completa" : "La plaza sigue viva"}
-          </div>
-
+          <div style={{ display: "flex" }}>Freestyle · República Dominicana</div>
           <div style={{ display: "flex" }}>piladerap.vercel.app</div>
         </div>
       </div>
@@ -202,6 +165,7 @@ export async function GET() {
     {
       width: 1200,
       height: 630,
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
     }
   );
 }

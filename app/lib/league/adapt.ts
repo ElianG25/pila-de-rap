@@ -115,83 +115,39 @@ function normalizeEvent(event: LeagueEvent): LeagueEvent {
 }
 
 /**
- * Transforma el payload crudo del Apps Script (formato viejo o nuevo)
- * al shape que espera fetchLeague(): { ok: true, league: LeaguePayload }.
- * Valida y normaliza con zod para evitar errores silenciosos si Sheets cambia.
+ * Transforma el payload crudo del Apps Script ({ ok, league }) al shape que
+ * espera fetchLeague(). Valida y normaliza con zod para evitar errores
+ * silenciosos si cambia el contenido de Sheets; ante un payload que no
+ * cumpla el contrato (ok !== true, league ausente), devuelve una liga vacía
+ * en vez de lanzar.
  */
 export function adaptPayload(raw: Record<string, unknown>): { ok: true; league: LeaguePayload } {
-  // Formato nuevo: el Apps Script ya devuelve { ok, league }
-  if (raw.ok === true && raw.league != null) {
-    const rawLeague = raw.league as Record<string, unknown>;
-    const config = (rawLeague.config ?? {}) as Record<string, string>;
-    const events = parseArray(rawLeague.events, EventSchema, "events").map(normalizeEvent);
+  const rawLeague = (raw.ok === true && raw.league != null ? raw.league : {}) as Record<string, unknown>;
+  const config = (rawLeague.config ?? {}) as Record<string, string>;
+  const events = parseArray(rawLeague.events, EventSchema, "events").map(normalizeEvent);
 
-    const byId = (id: unknown) =>
-      typeof id === "string" && id ? events.find((e) => e.eventId === id) ?? null : null;
+  const byId = (id: unknown) =>
+    typeof id === "string" && id ? events.find((e) => e.eventId === id) ?? null : null;
 
-    const pickEvent = (cfgId: unknown, fallback: unknown): LeagueEvent | null => {
-      const fromCfg = byId(cfgId);
-      if (fromCfg) return fromCfg;
-      const parsed = fallback ? EventSchema.safeParse(fallback) : null;
-      return parsed && parsed.success ? normalizeEvent(parsed.data) : null;
-    };
-
-    const league: LeaguePayload = {
-      config,
-      events,
-      featuredEvent: pickEvent(config.featuredEventId, rawLeague.featuredEvent),
-      activeEvent: pickEvent(config.activeEventId, rawLeague.activeEvent),
-      latestCompletedEvent: pickEvent(config.latestCompletedEventId, rawLeague.latestCompletedEvent),
-      registrations: parseArray(rawLeague.registrations, RegistrationSchema, "registrations"),
-      participants: Array.isArray(rawLeague.participants) ? rawLeague.participants : [],
-      ranking: parseArray(rawLeague.ranking, RankingSchema, "ranking"),
-      battles: parseArray(rawLeague.battles, BattleSchema, "battles"),
-      media: Array.isArray(rawLeague.media) ? rawLeague.media : [],
-      capacity: normalizeCapacity(rawLeague.capacity),
-    };
-
-    return { ok: true, league };
-  }
-
-  // Formato viejo: { data: [], events: [], ranking: [], battles: [], config: {} }
-  const events = parseArray(raw.events, EventSchema, "events").map(normalizeEvent);
-  const registrations = parseArray(raw.data, RegistrationSchema, "data");
-  const ranking = parseArray(raw.ranking, RankingSchema, "ranking");
-  const battles = parseArray(raw.battles, BattleSchema, "battles");
-  const config: Record<string, string> = (raw.config ?? {}) as Record<string, string>;
-
-  const publicEvents = events
-    .filter((e) => e.visible && e.estado !== "oculta")
-    .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
-
-  const ACTIVE_STATES = ["en_vivo", "inscripciones", "anunciada"];
-
-  const featuredEvent =
-    publicEvents.find((e) => ACTIVE_STATES.includes(e.estado)) ?? publicEvents[0] ?? null;
-
-  const activeEvent =
-    publicEvents.find((e) => e.inscripcionesAbiertas) ??
-    publicEvents.find((e) => ["en_vivo", "inscripciones"].includes(e.estado)) ??
-    null;
-
-  const latestCompletedEvent =
-    [...publicEvents].reverse().find((e) => e.estado === "finalizada") ?? null;
-
-  const maxCupos = activeEvent?.maxCupos || featuredEvent?.maxCupos || 32;
-  const total = registrations.length;
+  const pickEvent = (cfgId: unknown, fallback: unknown): LeagueEvent | null => {
+    const fromCfg = byId(cfgId);
+    if (fromCfg) return fromCfg;
+    const parsed = fallback ? EventSchema.safeParse(fallback) : null;
+    return parsed && parsed.success ? normalizeEvent(parsed.data) : null;
+  };
 
   const league: LeaguePayload = {
     config,
-    activeEvent,
-    featuredEvent,
-    latestCompletedEvent,
     events,
-    registrations,
-    participants: [],
-    ranking,
-    battles,
-    media: [],
-    capacity: { total, restantes: Math.max(0, maxCupos - total), max: maxCupos },
+    featuredEvent: pickEvent(config.featuredEventId, rawLeague.featuredEvent),
+    activeEvent: pickEvent(config.activeEventId, rawLeague.activeEvent),
+    latestCompletedEvent: pickEvent(config.latestCompletedEventId, rawLeague.latestCompletedEvent),
+    registrations: parseArray(rawLeague.registrations, RegistrationSchema, "registrations"),
+    participants: Array.isArray(rawLeague.participants) ? rawLeague.participants : [],
+    ranking: parseArray(rawLeague.ranking, RankingSchema, "ranking"),
+    battles: parseArray(rawLeague.battles, BattleSchema, "battles"),
+    media: Array.isArray(rawLeague.media) ? rawLeague.media : [],
+    capacity: normalizeCapacity(rawLeague.capacity),
   };
 
   return { ok: true, league };

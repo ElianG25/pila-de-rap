@@ -32,7 +32,8 @@ npm test        # tests (vitest)
 - `app/components/league/*` — componentes de UI (hero, ranking con podio, timeline de fechas, archivo de batallas, inscripción, stats).
 - `app/lib/league/` — `types.ts` (tipos), `helpers.ts` (orden/filtrado), `adapt.ts` (normalización + validación zod del payload de Sheets), `api.ts` (fetch cliente).
 - `app/api/league` — proxy a Sheets. `GET` con **revalidación de 45s** (ISR + `stale-while-revalidate`); `POST` para inscripciones con **honeypot + rate-limit por IP**.
-- `app/api/og` y `app/api/share` — imágenes Open Graph dinámicas (`/api/og` depende de `/api/mcs`).
+- `app/api/og` — imagen Open Graph dinámica (edge), generada a partir de los datos reales de la liga (fecha destacada, top 3 del ranking o último campeón).
+- `app/api/mcs`, `app/api/share`, `app/api/realtime` — retiradas (410 Gone); eran del "roster reveal" de la v1, previo al sistema de Liga/Eventos.
 
 ### Tipografías
 Sistema de 4 familias vía `next/font`: **Anton** (impacto), **Oswald** (display/UI),
