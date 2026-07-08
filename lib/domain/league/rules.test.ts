@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled } from "./helpers";
+import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled } from "./rules";
 import type { RankingItem, LeagueEvent, Battle } from "./types";
 
 const mkRank = (p: Partial<RankingItem>): RankingItem => ({

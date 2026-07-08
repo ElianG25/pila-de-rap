@@ -1,4 +1,4 @@
-import type { EventStatus } from "@/app/lib/league/types";
+import type { EventStatus } from "@/lib/domain/league/types";
 
 type EventStatusBadgeProps = {
   status: EventStatus | string;

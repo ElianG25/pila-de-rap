@@ -2,7 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { LeagueEvent } from "@/app/lib/league/types";
+import type { LeagueEvent } from "@/lib/domain/league/types";
+import { getErrorMessage } from "@/lib/domain/league/registrationErrors";
 
 type RegistrationCardProps = {
   activeEvent: LeagueEvent | null;
@@ -10,17 +11,6 @@ type RegistrationCardProps = {
 };
 type FormState = { nombre: string; alias: string; telefono: string; instagram: string };
 const blank: FormState = { nombre: "", alias: "", telefono: "", instagram: "" };
-
-const ERR_MAP: Record<string, string> = {
-  NO_ACTIVE_EVENT:       "No hay una fecha activa para inscribirse.",
-  INSCRIPCIONES_CERRADAS:"Las inscripciones no están abiertas.",
-  CAMPOS_INCOMPLETOS:    "Completa nombre, AKA y teléfono.",
-  TELEFONO_INVALIDO:     "El teléfono debe tener 10 dígitos.",
-  CUPOS_AGOTADOS:        "Los cupos están agotados.",
-  YA_INSCRITO:           "Ese teléfono ya está inscrito para esta fecha.",
-  HOJA_NO_EXISTE:        "No se encontró la hoja de inscripciones.",
-  RATE_LIMITED:          "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
-};
 
 export function RegistrationCard({ activeEvent, capacity }: RegistrationCardProps) {
   const [form,    setForm]    = useState<FormState>(blank);
@@ -44,7 +34,7 @@ export function RegistrationCard({ activeEvent, capacity }: RegistrationCardProp
       const data = await res.json();
       if (!data.ok) {
         setStatus("error");
-        setMessage(ERR_MAP[data.error] ?? "No se pudo completar la inscripción.");
+        setMessage(getErrorMessage(data.error));
         return;
       }
       setStatus("success");

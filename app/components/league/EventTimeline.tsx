@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { LeagueEvent } from "@/app/lib/league/types";
+import type { LeagueEvent } from "@/lib/domain/league/types";
 import { EventStatusBadge } from "./EventStatusBadge";
 
 type EventTimelineProps = { events: LeagueEvent[] };

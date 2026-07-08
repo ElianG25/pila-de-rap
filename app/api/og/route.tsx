@@ -1,45 +1,13 @@
 import { ImageResponse } from "next/og";
-import { adaptPayload } from "@/app/lib/league/adapt";
-import { sortRanking } from "@/app/lib/league/helpers";
-import type { LeaguePayload } from "@/app/lib/league/types";
+import { getLeague } from "@/lib/application/league/getLeague";
+import { buildShareHighlights } from "@/lib/application/league/buildShareHighlights";
 
 export const runtime = "edge";
 export const revalidate = 60;
 
-async function getLeague(): Promise<LeaguePayload | null> {
-  const sheetsUrl = process.env.SHEETS_GET_URL;
-  if (!sheetsUrl) return null;
-
-  try {
-    const res = await fetch(sheetsUrl, { next: { revalidate: 60 } });
-    if (!res.ok) return null;
-    const raw = await res.json();
-    return adaptPayload(raw as Record<string, unknown>).league;
-  } catch {
-    return null;
-  }
-}
-
-function getBadge(estado?: string): string {
-  if (estado === "en_vivo") return "EN VIVO";
-  if (estado === "inscripciones") return "INSCRIPCIONES ABIERTAS";
-  if (estado === "anunciada") return "FECHA CONFIRMADA";
-  return "TEMPORADA 2026";
-}
-
 export async function GET() {
-  const league = await getLeague();
-  const featured = league?.featuredEvent ?? null;
-  const latest = league?.latestCompletedEvent ?? null;
-  const top3 = league ? sortRanking(league.ranking).slice(0, 3) : [];
-
-  const badge = getBadge(featured?.estado);
-  const headline = (featured?.titulo || "LA PLAZA SIGUE VIVA").toUpperCase();
-  const sub =
-    featured && featured.estado !== "futura"
-      ? [featured.fechaEvento, featured.ubicacion].filter(Boolean).join("  ·  ") ||
-        "Freestyle, barras y competencia real en RD"
-      : "Freestyle, barras y competencia real en República Dominicana";
+  const league = await getLeague(60).catch(() => null);
+  const { badge, headline, sub, top3, latestChampion } = buildShareHighlights(league);
 
   return new ImageResponse(
     (
@@ -126,7 +94,7 @@ export async function GET() {
                 </div>
               </div>
             ))
-          ) : latest?.campeon ? (
+          ) : latestChampion ? (
             <div
               style={{
                 display: "flex",
@@ -139,7 +107,7 @@ export async function GET() {
             >
               <div style={{ display: "flex", fontSize: 18, color: "#a1a1aa" }}>Último campeón</div>
               <div style={{ display: "flex", fontSize: 32, fontWeight: 900, color: "#facc15" }}>
-                {latest.campeon}
+                {latestChampion}
               </div>
             </div>
           ) : null}

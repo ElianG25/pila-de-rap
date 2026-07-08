@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Battle, LeagueEvent } from "@/app/lib/league/types";
-import { initials } from "@/app/lib/format";
+import type { Battle, LeagueEvent } from "@/lib/domain/league/types";
+import { initials } from "@/lib/shared/format";
 
 type BattleArchiveProps = {
   battles: Battle[];

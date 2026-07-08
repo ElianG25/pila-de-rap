@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LeagueEvent, LeaguePayload, RankingItem, Battle, Registration } from "./types";
+import type { LeagueEvent, LeaguePayload, RankingItem, Battle, Registration } from "@/lib/domain/league/types";
 
 /* ── Coerciones seguras ──────────────────────────────────────────── */
 const str = z.preprocess((v) => (v == null ? "" : v), z.coerce.string()).catch("").default("");
@@ -116,7 +116,7 @@ function normalizeEvent(event: LeagueEvent): LeagueEvent {
 
 /**
  * Transforma el payload crudo del Apps Script ({ ok, league }) al shape que
- * espera fetchLeague(). Valida y normaliza con zod para evitar errores
+ * espera la aplicación. Valida y normaliza con zod para evitar errores
  * silenciosos si cambia el contenido de Sheets; ante un payload que no
  * cumpla el contrato (ok !== true, league ausente), devuelve una liga vacía
  * en vez de lanzar.

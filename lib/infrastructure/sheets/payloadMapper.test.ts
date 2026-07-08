@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { adaptPayload } from "./adapt";
+import { adaptPayload } from "./payloadMapper";
 
 describe("adaptPayload — formato nuevo", () => {
   it("usa IDs del config para featured/active/latest y normaliza hora artefacto", () => {

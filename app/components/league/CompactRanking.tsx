@@ -2,8 +2,8 @@
 
 import { motion, useMotionValue, animate } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RankingItem } from "@/app/lib/league/types";
-import { initials } from "@/app/lib/format";
+import type { RankingItem } from "@/lib/domain/league/types";
+import { initials } from "@/lib/shared/format";
 
 type CompactRankingProps = {
   ranking: RankingItem[];
