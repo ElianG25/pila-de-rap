@@ -3,6 +3,7 @@
 import { motion, useMotionValue, animate } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RankingItem } from "@/app/lib/league/types";
+import { initials } from "@/app/lib/format";
 
 type CompactRankingProps = {
   ranking: RankingItem[];
@@ -13,14 +14,6 @@ type CompactRankingProps = {
 const TOP3_BG   = ["bg-yellow-400/[0.09]", "bg-white/[0.03]",   "bg-orange-500/[0.05]"];
 const TOP3_RING = ["border-yellow-400/30", "border-white/[0.09]","border-orange-400/25"];
 const TOP3_NUM  = ["text-yellow-400",      "text-zinc-200",      "text-orange-300"];
-
-/** Iniciales para el avatar del MC. */
-function initials(alias: string): string {
-  const parts = alias.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function Avatar({ alias, size = 34, gold = false }: { alias: string; size?: number; gold?: boolean }) {
   return (

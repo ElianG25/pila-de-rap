@@ -8,6 +8,7 @@ import { fetchLeague } from "@/app/lib/league/api";
 import {
   getPublicEvents,
   getPublishedBattles,
+  isSectionEnabled,
   sortRanking,
 } from "@/app/lib/league/helpers";
 import { LeagueHero }        from "@/app/components/league/LeagueHero";
@@ -28,6 +29,20 @@ const SECTIONS: { id: Section; label: string }[] = [
   { id: "inscripcion", label: "Unirse"   },
 ];
 const BG_VIDEO_ID = "jw-aW3a7pSM";
+
+/** Qué flag de la hoja Config apaga cada sección (además de "inicio"/"inscripcion", siempre visibles). */
+const SECTION_CONFIG_FLAG: Partial<Record<Section, string>> = {
+  ranking: "showRanking",
+  fechas: "showEvents",
+  batallas: "showBattles",
+};
+
+function getVisibleSections(config: Record<string, string> | undefined) {
+  return SECTIONS.filter((s) => {
+    const flag = SECTION_CONFIG_FLAG[s.id];
+    return !flag || isSectionEnabled(config, flag);
+  });
+}
 
 function parseEventDate(fechaEvento: string, horaEvento: string): Date | null {
   if (!fechaEvento) return null;
@@ -229,6 +244,15 @@ export default function Home() {
   const events  = useMemo(() => getPublicEvents(league?.events ?? []),      [league?.events]);
   const battles = useMemo(() => getPublishedBattles(league?.battles ?? []), [league?.battles]);
 
+  const visibleSections = useMemo(() => getVisibleSections(league?.config), [league?.config]);
+  const showRanking = isSectionEnabled(league?.config, "showRanking");
+
+  // Si la sección activa quedó deshabilitada por Config (o venía de un ?s= viejo), vuelve a inicio.
+  useEffect(() => {
+    if (!league) return;
+    if (!visibleSections.some((s) => s.id === section)) setSection("inicio");
+  }, [league, visibleSections, section]);
+
   const bgVideoId    = (league?.config as Record<string, string>)?.backgroundVideoId ?? BG_VIDEO_ID;
   const instagramUrl = league?.config?.instagramUrl ?? "";
   const isLive       = league?.featuredEvent?.estado === "en_vivo";
@@ -240,11 +264,12 @@ export default function Home() {
     return Boolean(ev.fechaEvento);
   })();
 
-  const activeIndex = SECTIONS.findIndex((s) => s.id === section);
+  const activeIndex = visibleSections.findIndex((s) => s.id === section);
 
   function navigate(to: Section) {
-    const fromIdx = SECTION_ORDER.indexOf(section);
-    const toIdx   = SECTION_ORDER.indexOf(to);
+    const order   = visibleSections.map((s) => s.id);
+    const fromIdx = order.indexOf(section);
+    const toIdx   = order.indexOf(to);
     setDirection(toIdx >= fromIdx ? 1 : -1);
     setSection(to);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -254,10 +279,11 @@ export default function Home() {
   }
 
   function navigateDir(dir: 1 | -1) {
-    const cur = SECTION_ORDER.indexOf(section);
-    const next = cur + dir;
-    if (next >= 0 && next < SECTION_ORDER.length) {
-      navigate(SECTION_ORDER[next]);
+    const order = visibleSections.map((s) => s.id);
+    const cur   = order.indexOf(section);
+    const next  = cur + dir;
+    if (next >= 0 && next < order.length) {
+      navigate(order[next]);
     }
   }
 
@@ -472,14 +498,14 @@ export default function Home() {
         {/* DESKTOP NAV */}
         <div className="sticky top-0 z-40 hidden sm:block border-y border-white/[0.06] bg-black/90 backdrop-blur-xl">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <div className="relative grid" style={{ gridTemplateColumns: `repeat(${SECTIONS.length}, 1fr)` }}>
+            <div className="relative grid" style={{ gridTemplateColumns: `repeat(${visibleSections.length}, 1fr)` }}>
               <motion.div
                 className="absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-yellow-300 to-yellow-500 shadow-[0_0_18px_rgba(250,204,21,0.5)]"
-                style={{ width: `calc(100% / ${SECTIONS.length})` }}
+                style={{ width: `calc(100% / ${visibleSections.length})` }}
                 animate={{ x: `${activeIndex * 100}%` }}
                 transition={{ type: "spring", stiffness: 310, damping: 32 }}
               />
-              {SECTIONS.map((s) => (
+              {visibleSections.map((s) => (
                 <button key={s.id} type="button" onClick={() => navigate(s.id)}
                   aria-current={section === s.id ? "page" : undefined}
                   className={`font-display relative z-10 py-4 text-[12px] font-semibold uppercase tracking-[0.22em] transition-colors ${
@@ -503,8 +529,8 @@ export default function Home() {
                   <SeasonStats mcs={ranking.length} batallas={battles.length} fechas={events.length} />
                   <LeagueHero featuredEvent={league.featuredEvent} latestCompletedEvent={league.latestCompletedEvent}
                     capacity={league.capacity} slogan={slogan} />
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <CompactRanking ranking={ranking} />
+                  <div className={`grid gap-6 ${showRanking ? "md:grid-cols-2" : ""}`}>
+                    {showRanking && <CompactRanking ranking={ranking} />}
                     <LatestResults latestCompletedEvent={league.latestCompletedEvent} />
                   </div>
                 </>
@@ -536,8 +562,8 @@ export default function Home() {
       {/* MOBILE BOTTOM NAV */}
       <nav className="fixed bottom-0 inset-x-0 z-40 sm:hidden border-t border-white/[0.08] bg-black/95 backdrop-blur-xl"
            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${SECTIONS.length}, 1fr)` }}>
-          {SECTIONS.map((s) => {
+        <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${visibleSections.length}, 1fr)` }}>
+          {visibleSections.map((s) => {
             const isActive = section === s.id;
             return (
               <button key={s.id} type="button" onClick={() => navigate(s.id)}
