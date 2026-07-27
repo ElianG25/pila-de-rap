@@ -63,7 +63,7 @@ app/
     og/route.tsx                 Adaptador HTTP + JSX: llama a getLeague()/buildShareHighlights(),
                                  renderiza la imagen
     push/subscribe/route.ts      Alta (POST) / baja (DELETE) de una suscripción push
-    cron/check-updates/route.ts  Disparado por Vercel Cron cada 5 min (vercel.json); protegido con CRON_SECRET
+    cron/check-updates/route.ts  Disparado por Vercel Cron ~6x/día (vercel.json); protegido con CRON_SECRET
 
   hooks/                        Estado y efectos del lado del cliente (React puro, sin JSX de página).
     useLeagueData.ts             Fetch inicial + auto-refresh de la liga
@@ -128,7 +128,7 @@ GET /api/og
   → JSX + ImageResponse       [app/api/og/route.tsx]        — presentación, edge runtime
 ```
 
-**Notificaciones push (cron cada 5 min):**
+**Notificaciones push (cron ~6x/día — ver límite de Hobby abajo):**
 ```
 Vercel Cron → GET /api/cron/check-updates (Authorization: Bearer CRON_SECRET)
   → checkForUpdatesAndNotify()      [lib/application/notifications]
@@ -174,9 +174,11 @@ Suscribirse: `usePushSubscription` (hook) → `pushManager.subscribe()` (navegad
 - **`Battle.mc1..mc4`** sigue siendo campos fijos en vez de `competitors: string[]` — cambiarlo
   implica coordinar también el contrato del Apps Script, fuera del alcance de un refactor de solo
   Next.js.
-- **Vercel Cron en plan Hobby (free) limita la frecuencia** — si el proyecto está en Hobby, Vercel
-  puede no respetar `*/5 * * * *` tal cual y ejecutar el cron con menos frecuencia. Confirmar el plan
-  antes de asumir que las notificaciones llegan con 5 min de latencia máxima.
+- **Vercel Cron en plan Hobby (free) rechaza el deploy si un cron corre más de una vez al día**
+  (confirmado: así fue como se rompió el primer intento de este feature — `*/5 * * * *` hizo fallar
+  el deploy en Vercel). La solución actual son 6 cron jobs en `vercel.json`, cada uno "una vez al
+  día" a una hora distinta, dando ~4h de latencia máxima en vez de 5 min. Con plan Pro se puede
+  volver a un solo `*/5 * * * *`.
 - **Push en iOS requiere la PWA instalada** (Compartir → Agregar a inicio) e iOS 16.4+; en Safari
   normal las APIs de push no están disponibles. `usePushSubscription` detecta este caso
   (`ios_needs_install`) y la UI muestra instrucciones en vez de un botón que fallaría en silencio.

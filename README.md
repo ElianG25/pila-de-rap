@@ -50,7 +50,7 @@ Resumen rápido:
 - `app/api/league` — adaptador HTTP delgado sobre los casos de uso. `GET` con **revalidación de 45s** (ISR + `stale-while-revalidate`); `POST` para inscripciones con **honeypot + rate-limit por IP**.
 - `app/api/og` — imagen Open Graph dinámica (edge), generada a partir de los datos reales de la liga (fecha destacada, top 3 del ranking o último campeón).
 - `app/api/push/subscribe` — alta/baja de suscripciones push del navegador.
-- `app/api/cron/check-updates` — invocado por Vercel Cron cada 5 min (`vercel.json`); compara la liga contra el último snapshot y dispara las notificaciones.
+- `app/api/cron/check-updates` — invocado por Vercel Cron ~6 veces al día (`vercel.json`; el plan Hobby no permite más de una corrida diaria por cron job, así que son 6 jobs a horas distintas); compara la liga contra el último snapshot y dispara las notificaciones.
 
 ### Notificaciones push (PWA)
 Cuando se anuncia una fecha, se abren inscripciones, quedan pocos cupos, un
