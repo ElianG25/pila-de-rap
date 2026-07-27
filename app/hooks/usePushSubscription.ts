@@ -35,14 +35,15 @@ function subscribeSupport(callback: () => void) {
 }
 
 function getSupportSnapshot(): PushSupportStatus {
-  const supported =
-    typeof window !== "undefined" &&
-    "serviceWorker" in navigator &&
-    "PushManager" in window &&
-    "Notification" in window;
-  if (!supported) return "unsupported";
+  if (typeof window === "undefined") return "unsupported";
+
+  // En iOS, Safari fuera de standalone ni siquiera expone `PushManager` en
+  // `window` — hay que detectar este caso ANTES del chequeo de soporte
+  // general, o nunca se llega a distinguirlo de "unsupported".
   if (isIOS() && !isStandaloneDisplay()) return "ios_needs_install";
-  return "ready";
+
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  return supported ? "ready" : "unsupported";
 }
 
 // No hay evento nativo de "cambió el permiso"; el valor se re-lee en cada
