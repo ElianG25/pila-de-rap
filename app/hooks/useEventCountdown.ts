@@ -2,23 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { LeagueEvent } from "@/lib/domain/league/types";
+import { parseEventDate } from "@/lib/domain/league/eventTime";
 
 export type Countdown = { d: number; h: number; m: number; s: number };
 const ZERO: Countdown = { d: 0, h: 0, m: 0, s: 0 };
-
-function parseEventDate(fechaEvento: string, horaEvento: string): Date | null {
-  if (!fechaEvento) return null;
-  try {
-    const base = fechaEvento.includes("T") ? fechaEvento : fechaEvento + "T00:00:00";
-    const d = new Date(base);
-    if (isNaN(d.getTime())) return null;
-    if (horaEvento && /^\d{1,2}:\d{2}/.test(horaEvento)) {
-      const [h, m] = horaEvento.split(":").map(Number);
-      d.setHours(h, m, 0, 0);
-    }
-    return d;
-  } catch { return null; }
-}
 
 /** Cuenta regresiva hacia un evento; { 0,0,0,0 } si no aplica (finalizado, en vivo, futura o sin fecha). */
 export function useEventCountdown(event: LeagueEvent | null | undefined): Countdown {
