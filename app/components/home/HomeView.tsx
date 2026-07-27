@@ -16,6 +16,8 @@ import { SeasonStats } from "@/app/components/league/SeasonStats";
 import { BackgroundLayer } from "@/app/components/home/BackgroundLayer";
 import { TypewriterText } from "@/app/components/home/TypewriterText";
 import { NavIcon } from "@/app/components/home/NavIcon";
+import { NotificationBell } from "@/app/components/notifications/NotificationBell";
+import { NotificationBanner } from "@/app/components/notifications/NotificationBanner";
 
 function getHeroBadge(league: LeaguePayload): string {
   const ev = league.featuredEvent;
@@ -119,9 +121,12 @@ export function HomeView({
                 <p className="kicker mt-1 text-[8px] text-yellow-400/70">Liga de Freestyle · RD</p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-              <span className="font-display text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-300">Temporada 2026</span>
+            <div className="flex items-center gap-2">
+              <div className="hidden sm:flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
+                <span className="font-display text-[10px] font-semibold uppercase tracking-[0.24em] text-zinc-300">Temporada 2026</span>
+              </div>
+              <NotificationBell />
             </div>
           </motion.div>
 
@@ -235,6 +240,7 @@ export function HomeView({
               className="space-y-6">
               {section === "inicio" && (
                 <>
+                  <NotificationBanner />
                   <SeasonStats mcs={ranking.length} batallas={battles.length} fechas={events.length} />
                   <LeagueHero featuredEvent={league.featuredEvent} latestCompletedEvent={league.latestCompletedEvent}
                     capacity={league.capacity} slogan={slogan} />

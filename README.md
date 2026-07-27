@@ -15,6 +15,9 @@ Copia `.env.example` a `.env.local` y rellena:
 | `SHEETS_GET_URL` | Sí | URL del Web App de Apps Script que sirve y recibe los datos. Sin ella, `/api/league` responde 500. |
 | `TELEGRAM_TOKEN` | No | Token del bot de Telegram para notificar inscripciones. |
 | `TELEGRAM_CHAT_ID` | No | Chat destino de las notificaciones. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Para push | Par de claves VAPID (generar una sola vez con `npx web-push generate-vapid-keys`). |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Para push | Storage de suscripciones push y snapshot de la liga (cuenta free en upstash.com). |
+| `CRON_SECRET` | Para push | Protege `/api/cron/check-updates` de invocaciones externas. |
 
 ## Scripts
 
@@ -39,12 +42,24 @@ Resumen rápido:
 - `app/hooks/` — `useLeagueData`, `useSectionRouter`, `useEventCountdown`, `useMediaQuery`, `useParallaxScrollY`.
 - `app/components/home/` — presentación de la home (`HomeView`, `BackgroundLayer`, `LoadingScreen`, `ErrorScreen`...).
 - `app/components/league/*` — componentes de dominio de liga (hero, ranking con podio, timeline, archivo de batallas, inscripción, stats).
-- `lib/domain/league/` — tipos y reglas puras (`types.ts`, `rules.ts`, `registrationErrors.ts`).
+- `lib/domain/league/` — tipos y reglas puras (`types.ts`, `rules.ts`, `registrationErrors.ts`, `eventTime.ts`).
+- `lib/domain/notifications/` — diffing puro entre snapshots de la liga (`diffLeague.ts`, `isEventToday.ts`) para decidir qué notificar.
 - `lib/application/league/` — casos de uso (`getLeague`, `registerParticipant`, `buildShareHighlights`).
-- `lib/infrastructure/` — Sheets (`sheetsClient`, `payloadMapper` con zod), Telegram, anti-spam (`rateLimiter`, `honeypot`).
+- `lib/application/notifications/` — casos de uso (`checkForUpdatesAndNotify`, `manageSubscription`).
+- `lib/infrastructure/` — Sheets (`sheetsClient`, `payloadMapper` con zod), Telegram, anti-spam (`rateLimiter`, `honeypot`), push (`webPushClient`, `subscriptionStore` en Redis).
 - `app/api/league` — adaptador HTTP delgado sobre los casos de uso. `GET` con **revalidación de 45s** (ISR + `stale-while-revalidate`); `POST` para inscripciones con **honeypot + rate-limit por IP**.
 - `app/api/og` — imagen Open Graph dinámica (edge), generada a partir de los datos reales de la liga (fecha destacada, top 3 del ranking o último campeón).
-- `app/api/mcs`, `app/api/share`, `app/api/realtime` — retiradas (410 Gone); eran del "roster reveal" de la v1, previo al sistema de Liga/Eventos.
+- `app/api/push/subscribe` — alta/baja de suscripciones push del navegador.
+- `app/api/cron/check-updates` — invocado por Vercel Cron cada 5 min (`vercel.json`); compara la liga contra el último snapshot y dispara las notificaciones.
+
+### Notificaciones push (PWA)
+Cuando se anuncia una fecha, se abren inscripciones, quedan pocos cupos, un
+evento pasa a en vivo, se corona un campeón, se sube un video nuevo, o
+cambia el Top 3 del ranking — se le avisa a quien haya activado
+notificaciones (campanita en la barra superior, o el banner de la home). En
+iOS, el push solo funciona con la PWA agregada a la pantalla de inicio
+(limitación de Apple); si no está instalada, se muestran instrucciones en
+vez de un botón que fallaría en silencio.
 
 ### Tipografías
 Sistema de 4 familias vía `next/font`: **Anton** (impacto), **Oswald** (display/UI),

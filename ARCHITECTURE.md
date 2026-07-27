@@ -24,11 +24,21 @@ lib/
     rules.ts                    sortRanking, getPublicEvents, getPublishedBattles, isSectionEnabled
     registrationErrors.ts       Códigos de error de inscripción ↔ status HTTP ↔ mensaje de usuario
                                  (única fuente — antes duplicado entre la API y el formulario)
+    eventTime.ts                 Combina fechaEvento + horaEvento (12h/24h) en un Date real
+
+  domain/notifications/       Puro también: decide QUÉ notificar, sin fetch ni Date.now().
+    types.ts                    NotificationEvent, NotificationKind, PushSubscriptionData
+    diffLeague.ts                Compara snapshot anterior vs actual → NotificationEvent[]
+    isEventToday.ts               ¿"fechaEvento" es hoy? (para el recordatorio del día)
 
   application/league/         Casos de uso — orquestan dominio + infraestructura.
     getLeague.ts                 Trae y valida la liga completa (usado por /api/league y /api/og)
     registerParticipant.ts       Registra un participante y dispara la notificación
     buildShareHighlights.ts      Elige qué mostrar en la imagen social (fecha destacada, top 3...)
+
+  application/notifications/  Casos de uso de push.
+    checkForUpdatesAndNotify.ts   Trae la liga, la compara contra el snapshot, notifica, guarda snapshot
+    manageSubscription.ts         Alta/baja de una suscripción push
 
   infrastructure/              Todo lo que toca el mundo exterior.
     sheets/
@@ -39,6 +49,9 @@ lib/
     security/
       rateLimiter.ts              Anti-spam por IP (en memoria, ver limitaciones abajo)
       honeypot.ts                  Detección de bots por campo oculto
+    push/
+      webPushClient.ts             Envía vía web-push (VAPID); distingue suscripción muerta vs error transitorio
+      subscriptionStore.ts          Redis (Upstash): suscripciones, snapshot de la liga, dedup del recordatorio diario
 
   shared/
     format.ts                    Helpers de formato reusados por varios componentes (p. ej. initials)
@@ -49,7 +62,8 @@ app/
                                  traduce el resultado a NextResponse + status code
     og/route.tsx                 Adaptador HTTP + JSX: llama a getLeague()/buildShareHighlights(),
                                  renderiza la imagen
-    mcs/, share/, realtime/      Retiradas (410 Gone) — ver historial de PRs
+    push/subscribe/route.ts      Alta (POST) / baja (DELETE) de una suscripción push
+    cron/check-updates/route.ts  Disparado por Vercel Cron cada 5 min (vercel.json); protegido con CRON_SECRET
 
   hooks/                        Estado y efectos del lado del cliente (React puro, sin JSX de página).
     useLeagueData.ts             Fetch inicial + auto-refresh de la liga
@@ -57,6 +71,7 @@ app/
     useEventCountdown.ts         Cuenta regresiva hacia la fecha destacada
     useMediaQuery.ts             Suscripción genérica a media queries
     useParallaxScrollY.ts        Offset de scroll para el parallax del fondo
+    usePushSubscription.ts       Soporte/permiso/suscripción push del navegador (detecta iOS sin instalar)
 
   lib/
     leagueClient.ts              fetch del navegador hacia nuestra propia API (no hacia Sheets)
@@ -69,7 +84,13 @@ app/
       NavIcon.tsx / TypewriterText.tsx
     league/                      Componentes de dominio de liga (ranking, batallas, fechas, inscripción...)
                                  — sin cambios de contenido, solo import paths actualizados
+    notifications/
+      NotificationBell.tsx         Campanita en la top bar (activar/desactivar; instrucciones en iOS sin instalar)
+      NotificationBanner.tsx        Banner dismisseable de opt-in en la home
     ServiceWorkerRegistration.tsx
+
+public/
+  sw.js                          Cache-first/network-first de siempre + listeners de push/notificationclick
 
   page.tsx                      Composition root: llama a los hooks, deriva selectores de dominio
                                  (sortRanking, getPublicEvents...) y delega el render a <HomeView/>.
@@ -107,6 +128,19 @@ GET /api/og
   → JSX + ImageResponse       [app/api/og/route.tsx]        — presentación, edge runtime
 ```
 
+**Notificaciones push (cron cada 5 min):**
+```
+Vercel Cron → GET /api/cron/check-updates (Authorization: Bearer CRON_SECRET)
+  → checkForUpdatesAndNotify()      [lib/application/notifications]
+    → getLeague(0)                  [lib/application/league]              — liga fresca
+    → getLastSnapshot()             [lib/infrastructure/push/subscriptionStore.ts]
+    → diffLeagueForNotifications()  [lib/domain/notifications/diffLeague.ts]  — puro
+    → isEventToday() + hasBeenRemindedToday()/markRemindedToday()  — recordatorio del día (dedup)
+    → sendPushToSubscription()      [lib/infrastructure/push/webPushClient.ts]  — por cada suscripción
+    → saveSnapshot()                — la liga actual pasa a ser la base de la próxima comparación
+```
+Suscribirse: `usePushSubscription` (hook) → `pushManager.subscribe()` (navegador) → `POST /api/push/subscribe` → `subscribeToPush()` [lib/application/notifications/manageSubscription.ts] → Redis.
+
 ## Por qué esta separación (y no otra)
 
 - **`sheetsClient.ts` es el único lugar que lee `SHEETS_GET_URL`.** Antes ese env var se leía por
@@ -140,3 +174,12 @@ GET /api/og
 - **`Battle.mc1..mc4`** sigue siendo campos fijos en vez de `competitors: string[]` — cambiarlo
   implica coordinar también el contrato del Apps Script, fuera del alcance de un refactor de solo
   Next.js.
+- **Vercel Cron en plan Hobby (free) limita la frecuencia** — si el proyecto está en Hobby, Vercel
+  puede no respetar `*/5 * * * *` tal cual y ejecutar el cron con menos frecuencia. Confirmar el plan
+  antes de asumir que las notificaciones llegan con 5 min de latencia máxima.
+- **Push en iOS requiere la PWA instalada** (Compartir → Agregar a inicio) e iOS 16.4+; en Safari
+  normal las APIs de push no están disponibles. `usePushSubscription` detecta este caso
+  (`ios_needs_install`) y la UI muestra instrucciones en vez de un botón que fallaría en silencio.
+- **Las notificaciones son broadcast, no personalizadas** — todo suscrito recibe todo. Personalizar
+  por alias de MC (p. ej. "te pasaron en el ranking") requeriría pedir el alias al suscribirse y
+  cruzarlo contra `ranking.alias`, que hoy no se guarda por suscripción.
