@@ -15,25 +15,37 @@ function getRedis(): Redis {
 }
 
 export async function saveSubscription(subscription: PushSubscriptionData): Promise<void> {
-  await getRedis().hset(SUBSCRIPTIONS_KEY, { [subscription.endpoint]: JSON.stringify(subscription) });
+  await getRedis().hset(SUBSCRIPTIONS_KEY, { [subscription.endpoint]: subscription });
 }
 
 export async function removeSubscription(endpoint: string): Promise<void> {
   await getRedis().hdel(SUBSCRIPTIONS_KEY, endpoint);
 }
 
+function isPushSubscriptionData(value: unknown): value is PushSubscriptionData {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.endpoint === "string" && typeof v.keys === "object" && v.keys !== null;
+}
+
 export async function getAllSubscriptions(): Promise<PushSubscriptionData[]> {
-  const all = await getRedis().hgetall<Record<string, string>>(SUBSCRIPTIONS_KEY);
+  const all = await getRedis().hgetall<Record<string, unknown>>(SUBSCRIPTIONS_KEY);
   if (!all) return [];
   return Object.values(all)
     .map((raw) => {
-      try {
-        return JSON.parse(raw) as PushSubscriptionData;
-      } catch {
-        return null;
+      // El cliente de Redis deserializa JSON automáticamente al leer, así que
+      // `raw` normalmente ya es un objeto — pero se tolera el caso de que
+      // llegue como string (p. ej. datos guardados por una versión anterior).
+      if (typeof raw === "string") {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
       }
+      return raw;
     })
-    .filter((s): s is PushSubscriptionData => s !== null);
+    .filter(isPushSubscriptionData);
 }
 
 export async function getLastSnapshot(): Promise<LeaguePayload | null> {

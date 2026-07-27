@@ -22,13 +22,21 @@ function dismissBanner() {
   window.dispatchEvent(new Event(DISMISS_EVENT));
 }
 
-/** Banner dismisseable que invita a activar notificaciones; se oculta solo si ya está suscrito o el usuario lo cerró. */
+/**
+ * Banner dismisseable que invita a activar notificaciones — en PC, Android
+ * y iOS ya instalado muestra el botón directo; en iOS sin instalar (donde
+ * el botón fallaría en silencio) muestra las instrucciones en su lugar. Es
+ * el aviso principal: no depende de que alguien note la campanita del top
+ * bar. Se oculta solo si ya está suscrito o el usuario lo cerró.
+ */
 export function NotificationBanner() {
   const { status, isSubscribed, busy, subscribe } = usePushSubscription();
   // En el server no sabemos si ya se cerró antes: arranca oculto hasta hidratar en el cliente.
   const dismissed = useSyncExternalStore(subscribeDismissed, getDismissedSnapshot, () => true);
 
-  const visible = status === "ready" && !isSubscribed && !dismissed;
+  const needsIosInstall = status === "ios_needs_install";
+  const canSubscribeDirectly = status === "ready" && !isSubscribed;
+  const visible = (needsIosInstall || canSubscribeDirectly) && !dismissed;
 
   return (
     <AnimatePresence>
@@ -46,18 +54,22 @@ export function NotificationBanner() {
               No te pierdas nada de la plaza
             </p>
             <p className="mt-0.5 text-xs text-zinc-400">
-              Fechas nuevas, videos frescos y movimientos del ranking — directo a tu teléfono.
+              {needsIosInstall
+                ? "En iPhone: toca Compartir → Agregar a inicio, y abre la app desde ahí para activar los avisos."
+                : "Fechas nuevas, videos frescos y movimientos del ranking — directo a tu teléfono."}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={subscribe}
-              disabled={busy}
-              className="btn-gold whitespace-nowrap rounded-xl px-4 py-2 text-xs disabled:opacity-50"
-            >
-              {busy ? "..." : "Activar"}
-            </button>
+            {!needsIosInstall && (
+              <button
+                type="button"
+                onClick={subscribe}
+                disabled={busy}
+                className="btn-gold whitespace-nowrap rounded-xl px-4 py-2 text-xs disabled:opacity-50"
+              >
+                {busy ? "..." : "Activar"}
+              </button>
+            )}
             <button
               type="button"
               onClick={dismissBanner}
