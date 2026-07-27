@@ -4,11 +4,16 @@ import type { NotificationEvent } from "./types";
 
 const LOW_CAPACITY_THRESHOLD = 5;
 
+// Títulos cortos a propósito (buena práctica de notificaciones en general).
+// La línea "Pila de Ra'" que agregan iOS/Android arriba del título es UI del
+// sistema operativo para toda notificación (nativa o web) — no se puede
+// desactivar desde acá, así que no vale la pena diseñar en torno a eso.
+
 function buildAnnouncedEvent(ev: LeagueEvent): NotificationEvent {
   return {
     kind: "event_announced",
-    title: "🔥 ¡Nueva fecha en la plaza!",
-    body: `${ev.titulo || "La próxima fecha"} ya tiene día. Entérate antes que nadie.`,
+    title: "🔥 ¡Se prendió!",
+    body: `${ev.titulo || "La próxima fecha"} ya tiene día marcado. Prepara las barras, que esto se pone bueno.`,
     url: "/?s=fechas",
   };
 }
@@ -17,7 +22,7 @@ function buildRegistrationOpenEvent(ev: LeagueEvent): NotificationEvent {
   return {
     kind: "registration_open",
     title: "🎤 ¡Se abrió el mic!",
-    body: `Inscripciones para ${ev.titulo || "la próxima fecha"} ya están activas. Anótate ahora.`,
+    body: `Los cupos de ${ev.titulo || "la próxima fecha"} ya están abiertos. Coge el tuyo antes que se acaben.`,
     url: "/?s=inscripcion",
   };
 }
@@ -25,8 +30,8 @@ function buildRegistrationOpenEvent(ev: LeagueEvent): NotificationEvent {
 function buildLowCapacityEvent(ev: LeagueEvent, restantes: number): NotificationEvent {
   return {
     kind: "low_capacity",
-    title: `⚡ ¡Quedan ${restantes} cupos!`,
-    body: `${ev.titulo || "La fecha"} se está llenando rápido. Si vas a entrar, es ahora o nunca.`,
+    title: "⚡ ¡Últimos cupos!",
+    body: `Quedan solo ${restantes} pa' ${ev.titulo || "la fecha"}. Si vas a tirar, es ahora o nunca.`,
     url: "/?s=inscripcion",
   };
 }
@@ -35,7 +40,7 @@ function buildLiveEvent(ev: LeagueEvent): NotificationEvent {
   return {
     kind: "event_live",
     title: "🔴 ¡Estamos en vivo!",
-    body: `${ev.titulo || "La plaza"} está que arde ahora mismo. No te lo pierdas.`,
+    body: `${ev.titulo || "La plaza"} está que arde ahora mismo. Conéctate y no te pierdas ni una barra.`,
     url: "/",
   };
 }
@@ -43,8 +48,8 @@ function buildLiveEvent(ev: LeagueEvent): NotificationEvent {
 function buildChampionEvent(ev: LeagueEvent): NotificationEvent {
   return {
     kind: "champion_crowned",
-    title: "👑 ¡Tenemos campeón!",
-    body: `${ev.campeon} se llevó ${ev.titulo || "la fecha"}. Mira cómo pasó todo.`,
+    title: "👑 ¡Nuevo campeón!",
+    body: `${ev.campeon} se coronó en ${ev.titulo || "la fecha"}. Dale un vistazo a cómo se puso la cosa.`,
     url: "/",
   };
 }
@@ -53,8 +58,8 @@ function buildNewVideoEvent(battle: Battle): NotificationEvent {
   const mcs = [battle.mc1, battle.mc2, battle.mc3, battle.mc4].filter(Boolean).join(" vs ");
   return {
     kind: "new_video",
-    title: "🎥 Nuevo video en el archivo",
-    body: `${mcs || "Una nueva batalla"} ya está arriba. Dale play.`,
+    title: "🎥 ¡Video nuevo!",
+    body: `Ya subimos ${mcs || "una nueva batalla"}. Dale play y saca tus conclusiones.`,
     url: "/?s=batallas",
   };
 }
@@ -62,8 +67,8 @@ function buildNewVideoEvent(battle: Battle): NotificationEvent {
 function buildRankingShuffleEvent(top3: string[]): NotificationEvent {
   return {
     kind: "ranking_shuffle",
-    title: "📈 ¡Sacudida en el Top 3!",
-    body: `Ahora es: 1. ${top3[0]} · 2. ${top3[1]} · 3. ${top3[2]}. ¿Aguantará la corona?`,
+    title: "📈 ¡Nuevo Top 3!",
+    body: `Quedó así: 1. ${top3[0]} · 2. ${top3[1]} · 3. ${top3[2]}. ¿Quién se queda con la corona?`,
     url: "/?s=ranking",
   };
 }
@@ -73,7 +78,7 @@ export function buildDayOfReminder(ev: LeagueEvent): NotificationEvent {
   return {
     kind: "event_reminder",
     title: "📅 ¡Hoy es el día!",
-    body: `${ev.titulo || "La fecha"} es hoy${ev.horaEvento ? ` a las ${ev.horaEvento}` : ""}. Nos vemos en la plaza.`,
+    body: `${ev.titulo || "La fecha"} arranca hoy${ev.horaEvento ? ` a las ${ev.horaEvento}` : ""}. Nos vemos en la plaza.`,
     url: "/?s=fechas",
   };
 }

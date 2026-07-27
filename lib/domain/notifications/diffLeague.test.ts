@@ -56,7 +56,7 @@ describe("diffLeagueForNotifications", () => {
     const current = mkLeague({ activeEvent, capacity: { total: 29, restantes: 3, max: 32 } });
     const result = diffLeagueForNotifications(previous, current);
     expect(result.map((r) => r.kind)).toContain("low_capacity");
-    expect(result[0].title).toContain("3");
+    expect(result[0].body).toContain("3");
   });
 
   it("no repite el aviso de cupos bajos si ya estaba bajo antes", () => {
