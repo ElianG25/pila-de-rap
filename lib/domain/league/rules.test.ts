@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled, getVisibleMedia, getEventPlaylist, hasNoStatsYet } from "./rules";
+import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled, getVisibleMedia, getEventPlaylist, hasNoStatsYet, hasPendingResults } from "./rules";
 import type { RankingItem, LeagueEvent, Battle, MediaItem } from "./types";
 
 const mkRank = (p: Partial<RankingItem>): RankingItem => ({
@@ -112,5 +112,17 @@ describe("hasNoStatsYet", () => {
   it("false si tiene al menos un campo distinto de 0", () => {
     expect(hasNoStatsYet(mkRank({ derrotas: 1 }))).toBe(false);
     expect(hasNoStatsYet(mkRank({ puntosBatalla: 5.5 }))).toBe(false);
+  });
+});
+
+describe("hasPendingResults", () => {
+  it("true si al menos un MC no tiene stats cargadas", () => {
+    expect(hasPendingResults([mkRank({ alias: "A", puntosLiga: 10 }), mkRank({ alias: "B" })])).toBe(true);
+  });
+  it("false si todos los MCs ya tienen stats", () => {
+    expect(hasPendingResults([mkRank({ alias: "A", puntosLiga: 10 }), mkRank({ alias: "B", derrotas: 1 })])).toBe(false);
+  });
+  it("false con ranking vacío", () => {
+    expect(hasPendingResults([])).toBe(false);
   });
 });

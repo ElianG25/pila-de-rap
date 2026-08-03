@@ -66,3 +66,8 @@ export function hasNoStatsYet(mc: RankingItem): boolean {
     mc.replicas === 0
   );
 }
+
+/** Hay al menos un MC sin stats cargadas — el ranking completo es provisional. */
+export function hasPendingResults(ranking: RankingItem[]): boolean {
+  return ranking.some(hasNoStatsYet);
+}

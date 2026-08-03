@@ -1,4 +1,4 @@
-import { sortRanking } from "@/lib/domain/league/rules";
+import { hasPendingResults, sortRanking } from "@/lib/domain/league/rules";
 import type { Battle, LeagueEvent, LeaguePayload } from "@/lib/domain/league/types";
 import type { NotificationEvent } from "./types";
 
@@ -64,11 +64,24 @@ function buildNewVideoEvent(battle: Battle): NotificationEvent {
   };
 }
 
-function buildRankingShuffleEvent(top3: string[]): NotificationEvent {
+function buildRankingShuffleEvent(top3: string[], provisional: boolean): NotificationEvent {
   return {
     kind: "ranking_shuffle",
     title: "📈 ¡Nuevo Top 3!",
-    body: `Quedó así: 1. ${top3[0]} · 2. ${top3[1]} · 3. ${top3[2]}. ¿Quién se queda con la corona?`,
+    body: `Quedó así: 1. ${top3[0]} · 2. ${top3[1]} · 3. ${top3[2]}.${
+      provisional
+        ? " Ojo que todavía es provisional — faltan resultados por cargar."
+        : " ¿Quién se queda con la corona?"
+    }`,
+    url: "/?s=ranking",
+  };
+}
+
+function buildResultsFinalizedEvent(ev: LeagueEvent | null): NotificationEvent {
+  return {
+    kind: "results_finalized",
+    title: "✅ ¡Ranking definitivo!",
+    body: `Ya se terminaron de cargar las stats de ${ev?.titulo || "la última fecha"}. Dale un vistazo a cómo quedó la tabla.`,
     url: "/?s=ranking",
   };
 }
@@ -137,10 +150,17 @@ export function diffLeagueForNotifications(
     }
   }
 
+  const prevPending = hasPendingResults(previous.ranking);
+  const currPending = hasPendingResults(current.ranking);
+
   const prevTop3 = sortRanking(previous.ranking).slice(0, 3).map((r) => r.alias);
   const currTop3 = sortRanking(current.ranking).slice(0, 3).map((r) => r.alias);
   if (prevTop3.length === 3 && currTop3.length === 3 && !arraysEqual(prevTop3, currTop3)) {
-    events.push(buildRankingShuffleEvent(currTop3));
+    events.push(buildRankingShuffleEvent(currTop3, currPending));
+  }
+
+  if (prevPending && !currPending) {
+    events.push(buildResultsFinalizedEvent(current.latestCompletedEvent));
   }
 
   return events;

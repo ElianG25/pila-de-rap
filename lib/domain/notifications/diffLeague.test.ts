@@ -124,4 +124,43 @@ describe("diffLeagueForNotifications", () => {
     const current = mkLeague({ ranking: [...ranking] });
     expect(diffLeagueForNotifications(previous, current)).toEqual([]);
   });
+
+  it("marca el aviso de top 3 como provisional si todavía hay resultados pendientes", () => {
+    const previous = mkLeague({
+      ranking: [
+        mkRank({ alias: "A", puntosLiga: 20 }),
+        mkRank({ alias: "B", puntosLiga: 10 }),
+        mkRank({ alias: "C", puntosLiga: 5 }),
+      ],
+    });
+    const current = mkLeague({
+      ranking: [
+        mkRank({ alias: "B", puntosLiga: 25 }),
+        mkRank({ alias: "A", puntosLiga: 20 }),
+        mkRank({ alias: "C", puntosLiga: 5 }),
+        mkRank({ alias: "D" }), // sin stats aún
+      ],
+    });
+    const shuffle = diffLeagueForNotifications(previous, current).find((r) => r.kind === "ranking_shuffle");
+    expect(shuffle?.body).toContain("provisional");
+  });
+
+  it("detecta cuando se terminan de cargar los resultados pendientes de la fecha", () => {
+    const finishedEvent = mkEvent({ eventId: "e1", estado: "finalizada", titulo: "Fecha 5" });
+    const previous = mkLeague({ ranking: [mkRank({ alias: "A" })], latestCompletedEvent: finishedEvent });
+    const current = mkLeague({
+      ranking: [mkRank({ alias: "A", puntosLiga: 10, victorias: 3 })],
+      latestCompletedEvent: finishedEvent,
+    });
+    const result = diffLeagueForNotifications(previous, current);
+    expect(result.map((r) => r.kind)).toContain("results_finalized");
+    expect(result.find((r) => r.kind === "results_finalized")!.body).toContain("Fecha 5");
+  });
+
+  it("no notifica resultados definitivos si ya no había pendientes antes", () => {
+    const ranking = [mkRank({ alias: "A", puntosLiga: 10, victorias: 3 })];
+    const previous = mkLeague({ ranking });
+    const current = mkLeague({ ranking: [...ranking] });
+    expect(diffLeagueForNotifications(previous, current).map((r) => r.kind)).not.toContain("results_finalized");
+  });
 });

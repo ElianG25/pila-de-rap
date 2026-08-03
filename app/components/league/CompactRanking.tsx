@@ -3,7 +3,7 @@
 import { motion, useMotionValue, animate } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RankingItem } from "@/lib/domain/league/types";
-import { hasNoStatsYet } from "@/lib/domain/league/rules";
+import { hasNoStatsYet, hasPendingResults } from "@/lib/domain/league/rules";
 import { initials } from "@/lib/shared/format";
 
 type CompactRankingProps = {
@@ -96,6 +96,18 @@ function AnimatedNumber({ value, className }: { value: number; className?: strin
   }, [value, motionVal]);
 
   return <span ref={ref} className={className}>{value}</span>;
+}
+
+/** Se muestra mientras haya al menos un MC sin stats cargadas (ver hasPendingResults). */
+function PendingResultsBanner() {
+  return (
+    <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-yellow-400/20 bg-yellow-400/[0.05] px-3.5 py-3">
+      <span className="mt-px shrink-0 text-sm leading-none">⏳</span>
+      <p className="text-[11px] font-medium leading-snug text-yellow-200/80">
+        Todavía faltan resultados de la última fecha por cargar — la tabla puede moverse en las próximas horas. Nada es definitivo hasta que estén todas las stats.
+      </p>
+    </div>
+  );
 }
 
 function EmptyState() {
@@ -263,6 +275,8 @@ export function CompactRanking({ ranking, limit = 5, variant = "compact" }: Comp
           {isFull ? `${ranking.length} MCs` : `Top ${Math.min(limit, ranking.length)}`}
         </span>
       </div>
+
+      {ranking.length > 0 && hasPendingResults(ranking) && <PendingResultsBanner />}
 
       {/* Buscador (solo vista completa) */}
       {searchable && (

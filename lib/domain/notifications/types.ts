@@ -6,6 +6,7 @@ export type NotificationKind =
   | "champion_crowned"
   | "new_video"
   | "ranking_shuffle"
+  | "results_finalized"
   | "event_reminder";
 
 export type NotificationEvent = {
