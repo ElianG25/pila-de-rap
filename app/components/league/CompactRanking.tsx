@@ -103,17 +103,22 @@ function EmptyState() {
   );
 }
 
-/** Podio Top-3 (vista completa). Orden visual: 2º · 1º · 3º. */
+/**
+ * Podio Top-3 por puntos (vista completa). Orden visual: 2º · 1º · 3º.
+ * "LÍDER" es puramente por puntosLiga — no implica que sea el campeón
+ * vigente (ver ChampionBadge), ya que alguien puede ganar la última fecha
+ * y arrancar en 0 puntos hasta que se cargan sus resultados.
+ */
 function Podium({ top }: { top: RankingItem[] }) {
   if (top.length < 3) return null;
   const order = [1, 0, 2]; // índices a posiciones visuales
   const heights = ["pt-5", "pt-0", "pt-7"];
-  const labels = ["2º", "CAMPEÓN", "3º"];
+  const labels = ["2º", "LÍDER", "3º"];
   return (
     <div className="mb-5 grid grid-cols-3 items-end gap-2 sm:gap-3">
       {order.map((idx, col) => {
         const mc = top[idx];
-        const isChamp = idx === 0;
+        const isLeader = idx === 0;
         return (
           <motion.div
             key={mc.alias}
@@ -123,20 +128,20 @@ function Podium({ top }: { top: RankingItem[] }) {
             className={`${heights[col]} flex flex-col items-center`}
           >
             <div className={`relative flex w-full flex-col items-center rounded-2xl border px-2 py-4 text-center ${
-              isChamp
+              isLeader
                 ? "border-yellow-400/40 bg-yellow-400/[0.10] shadow-[0_0_30px_-8px_rgba(250,204,21,0.5)]"
                 : `${TOP3_RING[idx]} ${TOP3_BG[idx]}`
             }`}>
-              {isChamp && (
+              {isLeader && (
                 <svg className="absolute -top-3 h-6 w-6 text-yellow-400 drop-shadow" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                   <path d="M3 7l4 4 5-6 5 6 4-4v10H3V7z" />
                 </svg>
               )}
-              <Avatar alias={mc.alias} size={isChamp ? 56 : 44} gold={isChamp} />
-              <p className={`mt-2 truncate w-full font-display font-bold uppercase tracking-tight ${isChamp ? "text-base text-yellow-300" : `text-sm ${TOP3_NUM[idx]}`}`}>
+              <Avatar alias={mc.alias} size={isLeader ? 56 : 44} gold={isLeader} />
+              <p className={`mt-2 truncate w-full font-display font-bold uppercase tracking-tight ${isLeader ? "text-base text-yellow-300" : `text-sm ${TOP3_NUM[idx]}`}`}>
                 {mc.alias}
               </p>
-              {mc.estado === "campeon" && !isChamp && (
+              {mc.estado === "campeon" && (
                 <span className="mt-1"><ChampionBadge /></span>
               )}
               <p className="font-mono text-lg font-extrabold tabular-nums text-white leading-none mt-1">{mc.puntosLiga}</p>
@@ -144,7 +149,7 @@ function Podium({ top }: { top: RankingItem[] }) {
                 {mc.victorias}V · {mc.derrotas}D
               </p>
             </div>
-            <span className={`mt-2 font-display text-[10px] font-semibold uppercase tracking-[0.2em] ${isChamp ? "text-yellow-400" : "text-zinc-500"}`}>
+            <span className={`mt-2 font-display text-[10px] font-semibold uppercase tracking-[0.2em] ${isLeader ? "text-yellow-400" : "text-zinc-500"}`}>
               {labels[col]}
             </span>
           </motion.div>
