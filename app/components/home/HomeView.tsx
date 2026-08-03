@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import type { TouchEvent } from "react";
 import Image from "next/image";
-import type { LeaguePayload, LeagueEvent, RankingItem, Battle } from "@/lib/domain/league/types";
+import type { LeaguePayload, LeagueEvent, RankingItem, Battle, MediaItem } from "@/lib/domain/league/types";
 import type { Countdown } from "@/app/hooks/useEventCountdown";
 import type { Section } from "@/app/hooks/useSectionRouter";
 import { LeagueHero } from "@/app/components/league/LeagueHero";
@@ -62,6 +62,7 @@ type HomeViewProps = {
   ranking: RankingItem[];
   events: LeagueEvent[];
   battles: Battle[];
+  media: MediaItem[];
   showRanking: boolean;
   reducedMotion: boolean;
   isDesktop: boolean;
@@ -73,7 +74,7 @@ type HomeViewProps = {
 /** Vista pura de la home: toma datos ya resueltos por hooks y solo renderiza. */
 export function HomeView({
   league, section, visibleSections, activeIndex, direction, onNavigate,
-  onTouchStart, onTouchEnd, timeLeft, ranking, events, battles, showRanking,
+  onTouchStart, onTouchEnd, timeLeft, ranking, events, battles, media, showRanking,
   reducedMotion, isDesktop, scrollY, refreshing, bgVideoId,
 }: HomeViewProps) {
   const heroBadge = getHeroBadge(league);
@@ -252,7 +253,7 @@ export function HomeView({
               )}
               {section === "ranking"     && <CompactRanking ranking={ranking} limit={ranking.length || 30} variant="full" />}
               {section === "fechas"      && <EventTimeline events={events} />}
-              {section === "batallas"    && <BattleArchive battles={battles} events={events} />}
+              {section === "batallas"    && <BattleArchive battles={battles} events={events} media={media} />}
               {section === "inscripcion" && <RegistrationCard activeEvent={league.activeEvent} capacity={league.capacity} />}
             </motion.div>
           </AnimatePresence>

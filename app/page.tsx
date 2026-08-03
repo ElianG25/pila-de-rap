@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { getPublicEvents, getPublishedBattles, isSectionEnabled, sortRanking } from "@/lib/domain/league/rules";
+import { getPublicEvents, getPublishedBattles, getVisibleMedia, isSectionEnabled, sortRanking } from "@/lib/domain/league/rules";
 import { useLeagueData } from "@/app/hooks/useLeagueData";
 import { useSectionRouter } from "@/app/hooks/useSectionRouter";
 import { useEventCountdown } from "@/app/hooks/useEventCountdown";
@@ -30,6 +30,7 @@ export default function Home() {
   const ranking = useMemo(() => sortRanking(league?.ranking ?? []), [league?.ranking]);
   const events  = useMemo(() => getPublicEvents(league?.events ?? []), [league?.events]);
   const battles = useMemo(() => getPublishedBattles(league?.battles ?? []), [league?.battles]);
+  const media   = useMemo(() => getVisibleMedia(league?.media ?? []), [league?.media]);
   const showRanking = isSectionEnabled(league?.config, "showRanking");
 
   if (loading) return <LoadingScreen />;
@@ -51,6 +52,7 @@ export default function Home() {
       ranking={ranking}
       events={events}
       battles={battles}
+      media={media}
       showRanking={showRanking}
       reducedMotion={reducedMotion}
       isDesktop={isDesktop}

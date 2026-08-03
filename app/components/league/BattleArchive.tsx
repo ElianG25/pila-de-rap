@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Battle, LeagueEvent } from "@/lib/domain/league/types";
+import type { Battle, LeagueEvent, MediaItem } from "@/lib/domain/league/types";
+import { getEventPlaylist } from "@/lib/domain/league/rules";
 import { initials } from "@/lib/shared/format";
 
 type BattleArchiveProps = {
   battles: Battle[];
   events: LeagueEvent[];
+  media: MediaItem[];
 };
 
 function getBattleTitle(battle: Battle) {
@@ -167,7 +169,7 @@ function EmptyState() {
 }
 
 /* ─── Main Component ──────────────────────────────────── */
-export function BattleArchive({ battles, events }: BattleArchiveProps) {
+export function BattleArchive({ battles, events, media }: BattleArchiveProps) {
   const [selectedEventId, setSelectedEventId] = useState("all");
   const [selectedRonda,   setSelectedRonda]   = useState("all");
   const [onlyVideos, setOnlyVideos]           = useState(false);
@@ -180,6 +182,11 @@ export function BattleArchive({ battles, events }: BattleArchiveProps) {
       acc[e.eventId] = e.titulo || e.label || e.eventId;
       return acc;
     }, {}), [events]);
+
+  const eventPlaylist = useMemo(
+    () => (selectedEventId === "all" ? null : getEventPlaylist(media, selectedEventId)),
+    [media, selectedEventId]
+  );
 
   const rondas = useMemo(() => {
     const base = selectedEventId === "all" ? battles : battles.filter((b) => b.eventId === selectedEventId);
@@ -252,6 +259,29 @@ export function BattleArchive({ battles, events }: BattleArchiveProps) {
             </button>
           </div>
         </div>
+
+        {/* Playlist completa del evento seleccionado (si existe) */}
+        {eventPlaylist && (
+          <a
+            href={eventPlaylist.url} target="_blank" rel="noreferrer"
+            className="mb-5 flex items-center gap-3 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-4 py-3 transition hover:border-red-500/40 hover:bg-red-500/[0.1]"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-400">
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+                <path d="M6.3 2.84A1.5 1.5 0 0 0 4 4.11v11.78a1.5 1.5 0 0 0 2.3 1.27l9.344-5.891a1.5 1.5 0 0 0 0-2.538L6.3 2.84Z"/>
+              </svg>
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-display text-xs font-bold uppercase tracking-wide text-white">
+                Ver playlist completa
+              </span>
+              <span className="block truncate text-[11px] text-zinc-500">
+                {eventPlaylist.titulo || "Todas las batallas de esta fecha en YouTube"}
+              </span>
+            </span>
+            <span className="shrink-0 text-red-400">→</span>
+          </a>
+        )}
 
         {/* Battle grid */}
         {visible.length ? (

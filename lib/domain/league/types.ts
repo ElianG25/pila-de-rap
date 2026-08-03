@@ -71,6 +71,15 @@ export type Registration = {
   source: string;
 };
 
+export type MediaItem = {
+  eventId: string;
+  tipo: string;
+  titulo: string;
+  url: string;
+  visible: boolean;
+  orden: number;
+};
+
 export type LeaguePayload = {
   config: Record<string, string>;
   activeEvent: LeagueEvent | null;
@@ -81,7 +90,7 @@ export type LeaguePayload = {
   participants: unknown[];
   ranking: RankingItem[];
   battles: Battle[];
-  media: unknown[];
+  media: MediaItem[];
   capacity: {
     total: number;
     restantes: number;

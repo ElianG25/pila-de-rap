@@ -31,6 +31,25 @@ function Avatar({ alias, size = 34, gold = false }: { alias: string; size?: numb
   );
 }
 
+/**
+ * Insignia para RankingItem.estado === "campeon" — quien ganó la fecha más
+ * reciente, independiente de su posición por puntos. Se muestra aparte del
+ * podio (que ordena por puntosLiga) porque el campeón de una fecha nueva
+ * suele arrancar en 0 puntos hasta que se cargan los resultados completos;
+ * sin esta insignia, el estado "campeon" de la hoja no tenía ningún efecto
+ * visible en la página.
+ */
+function ChampionBadge() {
+  return (
+    <span
+      title="Campeón de la última fecha"
+      className="shrink-0 inline-flex items-center gap-0.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-display font-bold uppercase leading-none text-yellow-300"
+    >
+      👑 Campeón
+    </span>
+  );
+}
+
 function MovimientoIcon({ movimiento }: { movimiento: string }) {
   if (movimiento === "sube" || movimiento === "up")
     return (
@@ -117,6 +136,9 @@ function Podium({ top }: { top: RankingItem[] }) {
               <p className={`mt-2 truncate w-full font-display font-bold uppercase tracking-tight ${isChamp ? "text-base text-yellow-300" : `text-sm ${TOP3_NUM[idx]}`}`}>
                 {mc.alias}
               </p>
+              {mc.estado === "campeon" && !isChamp && (
+                <span className="mt-1"><ChampionBadge /></span>
+              )}
               <p className="font-mono text-lg font-extrabold tabular-nums text-white leading-none mt-1">{mc.puntosLiga}</p>
               <p className="font-mono text-[10px] tabular-nums text-zinc-500 mt-1">
                 {mc.victorias}V · {mc.derrotas}D
@@ -155,6 +177,7 @@ function RankRow({ mc, index }: { mc: RankingItem; index: number }) {
         }`}>
           {mc.alias}
         </span>
+        {mc.estado === "campeon" && <ChampionBadge />}
         {mc.movimiento && <MovimientoIcon movimiento={mc.movimiento} />}
         {mc.bonus > 0 && (
           <span className="shrink-0 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-display font-bold leading-none text-yellow-400">

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LeagueEvent, LeaguePayload, RankingItem, Battle, Registration } from "@/lib/domain/league/types";
+import type { LeagueEvent, LeaguePayload, RankingItem, Battle, Registration, MediaItem } from "@/lib/domain/league/types";
 
 /* ── Coerciones seguras ──────────────────────────────────────────── */
 const str = z.preprocess((v) => (v == null ? "" : v), z.coerce.string()).catch("").default("");
@@ -92,6 +92,15 @@ const RegistrationSchema: z.ZodType<Registration> = z.object({
   source: str,
 });
 
+const MediaSchema: z.ZodType<MediaItem> = z.object({
+  eventId: str,
+  tipo: str,
+  titulo: str,
+  url: str,
+  visible: bool,
+  orden: num,
+});
+
 /** Parsea cada elemento de un array; descarta los que ni siquiera son objetos. */
 function parseArray<T>(value: unknown, schema: z.ZodType<T>, label: string): T[] {
   if (!Array.isArray(value)) return [];
@@ -146,7 +155,7 @@ export function adaptPayload(raw: Record<string, unknown>): { ok: true; league: 
     participants: Array.isArray(rawLeague.participants) ? rawLeague.participants : [],
     ranking: parseArray(rawLeague.ranking, RankingSchema, "ranking"),
     battles: parseArray(rawLeague.battles, BattleSchema, "battles"),
-    media: Array.isArray(rawLeague.media) ? rawLeague.media : [],
+    media: parseArray(rawLeague.media, MediaSchema, "media"),
     capacity: normalizeCapacity(rawLeague.capacity),
   };
 

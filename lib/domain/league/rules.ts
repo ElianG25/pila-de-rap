@@ -1,4 +1,4 @@
-import type { Battle, LeagueEvent, RankingItem } from "./types";
+import type { Battle, LeagueEvent, MediaItem, RankingItem } from "./types";
 
 export function sortRanking(ranking: RankingItem[]) {
   return [...ranking].sort((a, b) => {
@@ -28,6 +28,17 @@ export function getPublishedBattles(battles: Battle[]) {
 
 export function getEventById(events: LeagueEvent[], eventId: string) {
   return events.find((event) => event.eventId === eventId) || null;
+}
+
+export function getVisibleMedia(media: MediaItem[]) {
+  return media
+    .filter((item) => item.visible && item.url)
+    .sort((a, b) => a.orden - b.orden);
+}
+
+/** Playlist de YouTube asociada a un evento (si existe). */
+export function getEventPlaylist(media: MediaItem[], eventId: string): MediaItem | null {
+  return media.find((item) => item.eventId === eventId && item.tipo === "playlist") ?? null;
 }
 
 /**
