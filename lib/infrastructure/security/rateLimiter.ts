@@ -1,18 +1,38 @@
-/** Anti-spam best-effort en memoria por instancia — ver ARCHITECTURE.md para sus límites. */
-const RATE_LIMIT = 4; // inscripciones permitidas por IP
-const RATE_WINDOW_MS = 10 * 60 * 1000; // en 10 minutos
-const hits = new Map<string, number[]>();
+import { Redis } from "@upstash/redis";
 
-export function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const arr = (hits.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  arr.push(now);
-  hits.set(ip, arr);
-  // Limpieza oportunista para no crecer sin límite
-  if (hits.size > 5000) {
-    for (const [k, v] of hits) if (!v.some((t) => now - t < RATE_WINDOW_MS)) hits.delete(k);
+const RATE_LIMIT = 4; // inscripciones permitidas por IP
+const RATE_WINDOW_SECONDS = 10 * 60; // en 10 minutos
+
+let redis: Redis | null = null;
+
+function getRedis(): Redis {
+  if (!redis) redis = Redis.fromEnv();
+  return redis;
+}
+
+/**
+ * Anti-spam por IP en Redis — antes vivía en un Map en memoria por
+ * instancia, que no servía en un despliegue serverless multi-instancia
+ * (cada instancia tenía su propio contador, fácil de esquivar). Es una
+ * ventana fija (no deslizante como el Map original): se resetea de golpe
+ * cada 10 min en vez de ir descontando hit por hit, una simplificación
+ * razonable para anti-spam best-effort.
+ *
+ * Fail-open: si Redis falla, no bloquea la inscripción — esto es una
+ * protección extra, no debe tumbar el flujo principal si el store falla.
+ */
+export async function isRateLimited(ip: string): Promise<boolean> {
+  try {
+    const key = `ratelimit:register:${ip}`;
+    const count = await getRedis().incr(key);
+    if (count === 1) {
+      await getRedis().expire(key, RATE_WINDOW_SECONDS);
+    }
+    return count > RATE_LIMIT;
+  } catch (err) {
+    console.error("rateLimiter error (fail-open):", err);
+    return false;
   }
-  return arr.length > RATE_LIMIT;
 }
 
 export function getClientIp(request: Request): string {

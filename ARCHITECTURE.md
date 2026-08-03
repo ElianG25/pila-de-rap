@@ -47,7 +47,7 @@ lib/
     telegram/
       telegramNotifier.ts        Notificación best-effort de inscripciones
     security/
-      rateLimiter.ts              Anti-spam por IP (en memoria, ver limitaciones abajo)
+      rateLimiter.ts              Anti-spam por IP en Redis (ventana fija, falla abierto)
       honeypot.ts                  Detección de bots por campo oculto
     push/
       webPushClient.ts             Envía vía web-push (VAPID); distingue suscripción muerta vs error transitorio
@@ -164,9 +164,9 @@ Suscribirse: `usePushSubscription` (hook) → `pushManager.subscribe()` (navegad
 
 ## Límites conocidos (no resueltos por este refactor)
 
-- **`rateLimiter.ts` sigue siendo en memoria por instancia** — no es una protección real en un
-  despliegue serverless multi-instancia. Reorganizar el código no lo arregla; hace falta un store
-  compartido (Upstash/KV) si esto importa de verdad.
+- **`rateLimiter.ts` ya usa Redis (Upstash)** — se migró del Map en memoria original ni bien se
+  agregó Upstash para las notificaciones push. Es una ventana fija (no deslizante como el Map
+  original) y falla abierto si Redis no responde; suficiente para anti-spam best-effort.
 - **El contrato de error sigue siendo por convención**, no por tipos compartidos con el Apps Script
   (`google-apps-scripts.gs`). `registrationErrors.ts` es la única fuente en el lado Next.js, pero el
   `.gs` define sus propios strings de error de forma independiente; si cambian ahí, hay que

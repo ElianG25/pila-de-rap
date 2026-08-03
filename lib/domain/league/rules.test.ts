@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled, getVisibleMedia, getEventPlaylist } from "./rules";
+import { sortRanking, getPublicEvents, getPublishedBattles, getEventById, isSectionEnabled, getVisibleMedia, getEventPlaylist, hasNoStatsYet } from "./rules";
 import type { RankingItem, LeagueEvent, Battle, MediaItem } from "./types";
 
 const mkRank = (p: Partial<RankingItem>): RankingItem => ({
@@ -102,5 +102,15 @@ describe("getEventPlaylist", () => {
   it("ignora entradas de media que no son playlist", () => {
     const media = [mkMedia({ eventId: "fecha-2", tipo: "foto" })];
     expect(getEventPlaylist(media, "fecha-2")).toBeNull();
+  });
+});
+
+describe("hasNoStatsYet", () => {
+  it("true si todos los campos numéricos están en 0", () => {
+    expect(hasNoStatsYet(mkRank({}))).toBe(true);
+  });
+  it("false si tiene al menos un campo distinto de 0", () => {
+    expect(hasNoStatsYet(mkRank({ derrotas: 1 }))).toBe(false);
+    expect(hasNoStatsYet(mkRank({ puntosBatalla: 5.5 }))).toBe(false);
   });
 });

@@ -39,6 +39,12 @@ function getShowCountdown(ev: LeagueEvent | null): boolean {
   return Boolean(ev.fechaEvento);
 }
 
+/** Solo se usa si de verdad parece una URL — evita mostrar un botón roto si Config trae texto suelto. */
+function getLiveUrl(league: LeaguePayload): string | null {
+  const url = league.config?.youtubeLiveUrl;
+  return url && /^https?:\/\//.test(url) ? url : null;
+}
+
 const pageVariants = {
   enter:  (dir: number) => ({ x: dir >= 0 ?  56 : -56, opacity: 0 }),
   center: { x: 0, opacity: 1 },
@@ -81,6 +87,7 @@ export function HomeView({
   const slogan = getHeroSlogan(league);
   const instagramUrl = league.config?.instagramUrl ?? "";
   const isLive = league.featuredEvent?.estado === "en_vivo";
+  const liveUrl = isLive ? getLiveUrl(league) : null;
   const showCountdown = getShowCountdown(league.featuredEvent);
 
   return (
@@ -178,6 +185,16 @@ export function HomeView({
                 {heroBadge}
               </span>
             </motion.div>
+
+            {liveUrl && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="mt-4">
+                <a href={liveUrl} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2.5 text-[12px] font-display font-bold uppercase tracking-[0.15em] text-white shadow-[0_0_24px_-4px_rgba(239,68,68,0.6)] transition hover:bg-red-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  Ver en vivo
+                </a>
+              </motion.div>
+            )}
 
             <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
               className="font-display mt-4 text-[13px] font-medium uppercase tracking-[0.2em] text-zinc-400">

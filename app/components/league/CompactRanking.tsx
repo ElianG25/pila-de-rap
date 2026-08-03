@@ -3,6 +3,7 @@
 import { motion, useMotionValue, animate } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RankingItem } from "@/lib/domain/league/types";
+import { hasNoStatsYet } from "@/lib/domain/league/rules";
 import { initials } from "@/lib/shared/format";
 
 type CompactRankingProps = {
@@ -46,6 +47,18 @@ function ChampionBadge() {
       className="shrink-0 inline-flex items-center gap-0.5 rounded-full border border-yellow-400/30 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-display font-bold uppercase leading-none text-yellow-300"
     >
       👑 Campeón
+    </span>
+  );
+}
+
+/** Para MCs recién agregados cuyas estadísticas todavía no se cargaron (ver hasNoStatsYet). */
+function PendingBadge() {
+  return (
+    <span
+      title="Sin resultados cargados todavía"
+      className="shrink-0 rounded-full border border-white/10 bg-white/[0.03] px-1.5 py-0.5 text-[8px] font-display font-bold uppercase leading-none text-zinc-500"
+    >
+      Pendiente
     </span>
   );
 }
@@ -183,6 +196,7 @@ function RankRow({ mc, index }: { mc: RankingItem; index: number }) {
           {mc.alias}
         </span>
         {mc.estado === "campeon" && <ChampionBadge />}
+        {hasNoStatsYet(mc) && <PendingBadge />}
         {mc.movimiento && <MovimientoIcon movimiento={mc.movimiento} />}
         {mc.bonus > 0 && (
           <span className="shrink-0 rounded-full border border-yellow-400/25 bg-yellow-400/10 px-1.5 py-0.5 text-[8px] font-display font-bold leading-none text-yellow-400">

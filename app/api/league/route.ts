@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, restantes: null });
     }
 
-    if (isRateLimited(getClientIp(request))) {
+    if (await isRateLimited(getClientIp(request))) {
       return NextResponse.json({ ok: false, error: "RATE_LIMITED" }, { status: getErrorStatus("RATE_LIMITED") });
     }
 

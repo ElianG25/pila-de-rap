@@ -49,3 +49,20 @@ export function getEventPlaylist(media: MediaItem[], eventId: string): MediaItem
 export function isSectionEnabled(config: Record<string, string> | undefined | null, key: string): boolean {
   return config?.[key] !== "FALSE";
 }
+
+/**
+ * MCs recién agregados a la hoja Ranking a veces no traen todavía sus
+ * estadísticas (mientras se cargan los resultados completos de la fecha) —
+ * en ese caso todos los campos numéricos llegan en 0 a la vez, a diferencia
+ * de alguien que ya compitió (que va a tener al menos algún campo distinto
+ * de 0: una victoria, una derrota, puntosBatalla...).
+ */
+export function hasNoStatsYet(mc: RankingItem): boolean {
+  return (
+    mc.puntosLiga === 0 &&
+    mc.puntosBatalla === 0 &&
+    mc.victorias === 0 &&
+    mc.derrotas === 0 &&
+    mc.replicas === 0
+  );
+}
